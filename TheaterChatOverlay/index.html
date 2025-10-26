@@ -24,13 +24,25 @@
     .bg-media { position:absolute; inset:0; object-fit:cover; width:100%; height:100%; z-index:0; opacity:.18; pointer-events:none; }
     .scrim { position:absolute; inset:0; background: radial-gradient(120% 120% at 80% 20%, transparent 0, rgba(0,0,0,.35) 60%, rgba(0,0,0,.65) 100%); z-index:1; pointer-events:none; }
 
-    .chat-wrap { position:relative; z-index:2; display:flex; justify-content:center; align-items:stretch; padding: 24px 16px; width:100%; height:100%; }
-    .chat { width: var(--maxw); display:flex; flex-direction:column; gap: var(--gap); height:100%; overflow:hidden; }
-    .topbar { display:flex; align-items:center; gap:12px; background: rgba(17, 26, 32, 0.82); padding:14px 18px; border-radius:16px; box-shadow: var(--shadow); }
-    .topbar .info { display:flex; flex-direction:column; }
-    .topbar .title { font-size: clamp(18px, 2.4vh, 22px); font-weight:600; }
-    .topbar .subtitle { font-size: 0.85em; color: var(--muted); }
-    .scroll { flex:1 1 auto; overflow-y:auto; padding-right:2px; scroll-behavior:smooth; scrollbar-width: none; -ms-overflow-style: none; }
+    .chat-wrap { position:relative; z-index:2; display:flex; justify-content:center; align-items:stretch; padding: 0; width:100%; height:100%; }
+    .chat { width:100%; max-width: var(--maxw); display:flex; flex-direction:column; gap:0; height:100%; overflow:hidden; }
+    .topbar { display:flex; align-items:center; justify-content:space-between; gap:12px; background:#1f2c34; padding:12px 18px; border-radius:0; border-bottom:1px solid rgba(255,255,255,0.05); box-shadow:none; width:100%; }
+    .topbar .left { display:flex; align-items:center; gap:14px; min-width:0; }
+    .topbar button { border:none; background:transparent; padding:6px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; color:var(--text); opacity:0.9; transition:background .2s ease, opacity .2s ease; flex-shrink:0; }
+    .topbar button:hover { background:rgba(255,255,255,.08); opacity:1; }
+    .topbar button:focus-visible { outline:2px solid rgba(37, 211, 102, 0.7); outline-offset:2px; }
+    .topbar button svg { width:20px; height:20px; }
+    .topbar .group-avatar { width:46px; height:46px; border-radius:50%; object-fit:cover; box-shadow: var(--shadow); }
+    .topbar .info { display:flex; flex-direction:column; gap:2px; min-width:0; }
+    .topbar .title { font-size: clamp(18px, 2.4vh, 21px); font-weight:600; white-space:nowrap; text-overflow:ellipsis; overflow:hidden; }
+    .topbar .subtitle { font-size: 0.84em; color: var(--muted); white-space:nowrap; text-overflow:ellipsis; overflow:hidden; }
+    .topbar .actions { display:flex; align-items:center; gap:4px; }
+    .topbar .actions svg { width:20px; height:20px; }
+    @media (max-width: 600px){
+      .topbar { flex-wrap:wrap; align-items:flex-start; }
+      .topbar .actions { margin-left:auto; }
+    }
+    .scroll { flex:1 1 auto; overflow-y:auto; padding:18px 20px 28px; scroll-behavior:smooth; scrollbar-width: none; -ms-overflow-style: none; }
     .scroll::-webkit-scrollbar { display: none; }
     .row { display:flex; align-items:flex-end; gap:12px; margin-bottom: 16px; }
     .row.them { justify-content:flex-start; }
@@ -74,9 +86,39 @@
     <div class="chat-wrap">
       <div class="chat">
         <header class="topbar">
-          <div class="info">
-            <div class="title">The never ending messages (Klasse 8a)</div>
-            <div class="subtitle">Gruppenchat</div>
+          <div class="left">
+            <button class="back" aria-label="Zurück">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M15.75 19.5L8.25 12l7.5-7.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+            <img class="group-avatar" src="https://i.pravatar.cc/120?u=whatsapp-group-overlay" alt="Gruppenbild" />
+            <div class="info">
+              <div class="title">The never ending messages (Klasse 8a)</div>
+              <div class="subtitle">9 Teilnehmer · zuletzt online heute um 18:42</div>
+            </div>
+          </div>
+          <div class="actions">
+            <button class="icon" aria-label="Videoanruf">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M4.5 7.5a2 2 0 012-2h6a2 2 0 012 2v9a2 2 0 01-2 2h-6a2 2 0 01-2-2v-9z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M18.5 8.75l2.5-1.7v9.9l-2.5-1.7V8.75z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+            <button class="icon" aria-label="Sprachanruf">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M7.75 5.5a1.75 1.75 0 013.5 0v3a1.75 1.75 0 11-3.5 0v-3zM12.75 5.5a1.75 1.75 0 013.5 0v3a1.75 1.75 0 11-3.5 0v-3z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M6.5 12.75c0 2.9 2.35 5.25 5.25 5.25s5.25-2.35 5.25-5.25" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+                <path d="M5.5 15.5h14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+            <button class="icon" aria-label="Gruppeninfos">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 11.5v4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M12 7.25h.01" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+                <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.6"/>
+              </svg>
+            </button>
           </div>
         </header>
         <div id="scroll" class="scroll"></div>
