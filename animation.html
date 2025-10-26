@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8" />
+<title>Ruhiges Netzwerk-Triangulum</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  html,body{height:100%;margin:0}
+  body{background:#0b0f1a;overflow:hidden}
+  canvas{position:fixed;inset:0;display:block}
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<script>
+/* ruhige Dreiecks-Netzwerkanimation ohne UI
+   Idee: jittered Grid -> lokale Triangulation (diagonal), seltene Diagonal-Flips
+   Punkte driften langsam sinusförmig. Linien sanft, gelegentliche "springende" Kante. */
+
+const cnv = document.getElementById('cv');
+const ctx = cnv.getContext('2d', { alpha:false });
+let DPR = Math.min(2, devicePixelRatio || 1);
+let W=0, H=0, t=0;
+
+// Farben und Stile
+const COL_BG   = '#0b0f1a';
+const COL_EDGE = 'rgba(120,170,255,0.25)';
+const COL_NODE = 'rgba(180,220,255,0.55)';
+
+// Gitterparameter
+const CELL = 90;         // Zielabstand in px
+const JIT  = 18;         // Jitter
+const AMP  = 12;         // Driftamplitude
+const SPD  = 0.06;       // Driftgeschwindigkeit (klein = langsam)
+const FLIP_P = 0.002;    // Wahrscheinlichkeit pro Zelle und Frame für Diagonal-Flip
+
+let pts = [];   // Punkte: {x0,y0, ax,ay, bx,by, r}
+let cols=0, rows=0;
+let cells = []; // Zellen: {a,b,c,d, diag:0|1} Indizes in pts-Array
+
+function resize(){
+  DPR = Math.min(2, devicePixelRatio || 1);
+  W = Math.floor(innerWidth);
+  H = Math.floor(innerHeight);
+  cnv.width = Math.floor(W * DPR);
+  cnv.height = Math.floor(H * DPR);
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  build();
+}
+
+function rnd(a,b){ return a + Math.random()*(b-a); }
+
+function build(){
+  pts = [];
+  cells = [];
+  cols = Math.max(3, Math.round(W / CELL));
+  rows = Math.max(3, Math.round(H / CELL));
+
+  // Punkte als jittered Grid mit individuellen Driftphasen
+  for(let j=0;j<=rows;j++){
+    for(let i=0;i<=cols;i++){
+      const xg = i * (W/cols);
+      const yg = j * (H/rows);
+      pts.push({
+        x0: xg + rnd(-JIT, JIT),
+        y0: yg + rnd(-JIT, JIT),
+        ax: rnd(0, Math.PI*2),
+        ay: rnd(0, Math.PI*2),
+        bx: rnd(0.5, 1.2),
+        by: rnd(0.5, 1.2),
+        r: rnd(0.8, 1.6)
+      });
+    }
+  }
+
+  // Zellen und Triangulation (abwechselnde Diagonale, später flips)
+  const idx = (i,j)=> j*(cols+1)+i;
+  for(let j=0;j<rows;j++){
+    for(let i=0;i<cols;i++){
+      const a = idx(i, j);
+      const b = idx(i+1, j);
+      const c = idx(i, j+1);
+      const d = idx(i+1, j+1);
+      const diag = ((i + j) % 2); // Startmuster
+      cells.push({ a,b,c,d, diag });
+    }
+  }
+}
+
+function step(){
+  t += 1/60;
+
+  // Hintergrund mit leichter Nachleuchtspur
+  ctx.fillStyle = COL_BG;
+  ctx.globalAlpha = 0.1; // Trails
+  ctx.fillRect(0,0,W,H);
+  ctx.globalAlpha = 1;
+
+  // Punktpositionen updaten
+  const P = []; // aktuelle Positionen
+  for(let i=0;i<pts.length;i++){
+    const p = pts[i];
+    const x = p.x0 + Math.sin(p.ax + t*SPD*p.bx)*AMP;
+    const y = p.y0 + Math.cos(p.ay + t*SPD*p.by)*AMP;
+    P.push([x,y]);
+  }
+
+  // Optional: seltene Diagonal-Flips für "springende" Kanten
+  for(const cell of cells){
+    if (Math.random() < FLIP_P) cell.diag ^= 1;
+  }
+
+  // Kanten zeichnen
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = COL_EDGE;
+  ctx.beginPath();
+  for(const cell of cells){
+    const {a,b,c,d,diag} = cell;
+    const [ax,ay]=P[a], [bx,by]=P[b], [cx,cy]=P[c], [dx,dy]=P[d];
+
+    // Rechteckkanten
+    moveLine(ax,ay,bx,by);
+    moveLine(ax,ay,cx,cy);
+    moveLine(dx,dy,bx,by);
+    moveLine(dx,dy,cx,cy);
+
+    // Diagonale für Triangulation
+    if (diag===0) moveLine(ax,ay,dx,dy);
+    else          moveLine(bx,by,cx,cy);
+  }
+  ctx.stroke();
+
+  // Punkte als sanftes Glühen
+  ctx.fillStyle = COL_NODE;
+  ctx.globalCompositeOperation = 'lighter';
+  for(let i=0;i<P.length;i++){
+    const [x,y] = P[i];
+    const r = pts[i].r;
+    ctx.beginPath();
+    ctx.arc(x,y,r,0,Math.PI*2);
+    ctx.fill();
+  }
+  ctx.globalCompositeOperation = 'source-over';
+
+  requestAnimationFrame(step);
+}
+
+function moveLine(x1,y1,x2,y2){
+  ctx.moveTo(x1,y1);
+  ctx.lineTo(x2,y2);
+}
+
+// Init
+resize();
+addEventListener('resize', resize);
+ctx.fillStyle = COL_BG; ctx.fillRect(0,0,W,H);
+requestAnimationFrame(step);
+</script>
+</body>
+</html>

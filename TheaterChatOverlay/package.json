@@ -1,0 +1,21 @@
+{
+  "name": "theater-chat-overlay",
+  "version": "1.0.0",
+  "description": "Theater Chat-Overlay im WhatsApp-Stil mit WebSocket-Server",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "record:playwright": "node record-playwright.js"
+  },
+  "dependencies": {
+    "ws": "^8.14.2"
+  },
+  "devDependencies": {
+    "playwright": "^1.40.0"
+  },
+  "keywords": ["theater", "chat", "overlay", "websocket", "obs"],
+  "author": "",
+  "license": "MIT"
+}

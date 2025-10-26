@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Theater Chat Overlay</title>
+  <style>
+    :root {
+      --bg: #0b141a;           /* WhatsApp dark */
+      --panel: #111a20cc;
+      --bubble-me: #005c4b;    /* grün */
+      --bubble-them: #202c33;  /* dunkelgrau */
+      --text: #e9edef;
+      --muted: #96a1a8;
+      --accent: #25d366;
+      --maxw: min(56rem, 92vw);
+      --gap: 10px;
+      --radius: 18px;
+      --avatar: 36px;
+      --shadow: 0 6px 20px rgba(0,0,0,.35);
+    }
+    body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Arial, sans-serif; background: var(--bg); color: var(--text); overflow:hidden; }
+    .stage { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; overflow:hidden; }
+    .bg-media { position:absolute; inset:0; object-fit:cover; width:100%; height:100%; z-index:0; opacity:.18; pointer-events:none; }
+    .scrim { position:absolute; inset:0; background: radial-gradient(120% 120% at 80% 20%, transparent 0, rgba(0,0,0,.35) 60%, rgba(0,0,0,.65) 100%); z-index:1; pointer-events:none; }
+
+    .chat-wrap { position:relative; z-index:2; display:flex; justify-content:center; align-items:stretch; padding: 24px 16px; width:100%; height:100%; }
+    .chat { width: var(--maxw); display:flex; flex-direction:column; gap: var(--gap); height:100%; overflow:hidden; }
+    .scroll { flex:1 1 auto; overflow-y:auto; padding-right:2px; scroll-behavior:smooth; scrollbar-width: none; -ms-overflow-style: none; }
+    .scroll::-webkit-scrollbar { display: none; }
+    .row { display:flex; align-items:flex-end; gap:12px; margin-bottom: 16px; }
+    .row.them { justify-content:flex-start; }
+    .row.me { justify-content:flex-end; }
+
+    .avatar { width: var(--avatar); height: var(--avatar); border-radius:50%; flex:0 0 var(--avatar); object-fit:cover; box-shadow: var(--shadow); }
+
+    .bubble { max-width: min(72%, 680px); padding:10px 12px; border-radius: var(--radius); box-shadow: var(--shadow); line-height:1.25; font-size: clamp(16px, 2.2vh, 20px); position:relative; }
+    .them .bubble { background: var(--bubble-them); border-top-left-radius: 6px; }
+    .me .bubble { background: var(--bubble-me); border-top-right-radius: 6px; }
+
+    .meta { display:flex; gap:8px; align-items:center; font-size:.78em; color: var(--muted); margin-top:6px; }
+    .name { font-weight:600; }
+    .time { opacity:.9; }
+
+    .typing { display:inline-flex; gap:4px; align-items:center; padding: 8px 0; }
+    .dot { width:8px; height:8px; border-radius:50%; background:#b7c1c6; opacity:0.3; }
+
+    .media { margin-top:8px; border-radius:12px; overflow:hidden; max-height: 42vh; }
+    .media img, .media video { display:block; max-width:100%; height:auto; }
+
+    /* Top info bar entfernt für Gruppenchat-Layout */
+
+    /* Control panel (toggle: press C) */
+    .panel { position:fixed; right:12px; bottom:12px; z-index:3; width:min(420px, 92vw); background: var(--panel); border-radius:16px; box-shadow: var(--shadow); display:grid; gap:8px; padding:12px; font-size:14px; }
+    .panel h3 { margin:0 0 4px; font-size:14px; opacity:.9; }
+    .panel input, .panel textarea, .panel select, .panel button { width:100%; box-sizing:border-box; border:1px solid #22333b; background:#0c1419; color:#e1e6ea; border-radius:10px; padding:8px 10px; }
+    .row2 { display:grid; grid-template-columns: 1fr 1fr; gap:8px; }
+    .hidden { display:none; }
+
+    /* Transparent mode for OBS */
+    body.trans { background: transparent; }
+  </style>
+</head>
+<body>
+  <div class="stage" id="stage">
+    <video id="bgVideo" class="bg-media" autoplay muted loop playsinline></video>
+    <img id="bgImage" class="bg-media" alt="" />
+  <canvas id="polyCanvas" class="bg-media" aria-hidden="true"></canvas>
+    <div class="scrim" id="scrim"></div>
+
+    <div class="chat-wrap">
+      <div class="chat">
+        <div id="scroll" class="scroll"></div>
+        <div id="typingRow" class="row them hidden">
+          <img id="typingAvatar" class="avatar" src="https://i.pravatar.cc/64?img=32" alt="avatar"/>
+          <div class="bubble"><span class="typing"><span class="dot"></span><span class="dot"></span><span class="dot"></span></span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel hidden" id="panel">
+      <h3>Live Eingabe (Taste C ein/aus)</h3>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <label style="flex:1; font-size:13px;">Sci‑Fi Polygon Hintergrund</label>
+        <input type="checkbox" id="polyToggle" />
+      </div>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <label style="width:120px; font-size:13px;">Geschwindigkeit</label>
+        <input id="polySpeed" type="range" min="0" max="2" step="0.05" value="1" />
+      </div>
+      <div class="row2">
+        <select id="role">
+          <option value="them">Publikum</option>
+          <option value="me">Protagonist</option>
+        </select>
+        <input id="name" placeholder="Name" value="Anna" />
+      </div>
+      <textarea id="text" rows="3" placeholder="Nachricht…"></textarea>
+      <div class="row2">
+        <input id="avatar" placeholder="Avatar-URL" value="https://i.pravatar.cc/64?img=12" />
+        <input id="media" placeholder="Medien-URL (Bild/Video)" />
+      </div>
+      <div class="row2">
+        <button id="send">Senden</button>
+        <button id="demo">Demo starten</button>
+      </div>
+      <div class="row2">
+        <button id="clear">Leeren</button>
+        <button id="bgbtn">Hintergrund setzen</button>
+      </div>
+      <input id="bgurl" placeholder="BG Bild/Video URL" />
+    </div>
+  </div>
+
+  <audio id="snd" preload="auto" src="https://cdn.jsdelivr.net/gh/limitlessgreen/cdn-audio@main/ui/pop.mp3"></audio>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+  <script src="./offline-chat.js"></script>
+  <script src="./polygon-bg.js"></script>
+  <script>
+    // ===== Utilities =====
+    const qs = (k, d=null) => new URLSearchParams(location.search).get(k) ?? d;
+    const scrollEl = document.getElementById('scroll');
+    const typingRow = document.getElementById('typingRow');
+    const typingAvatar = document.getElementById('typingAvatar');
+    const snd = document.getElementById('snd');
+    const bgImg = document.getElementById('bgImage');
+    const bgVid = document.getElementById('bgVideo');
+
+    // Smooth scrolling helpers
+    let _scrollAnim = null;
+    function cancelSmoothScroll(){ if(_scrollAnim){ cancelAnimationFrame(_scrollAnim); _scrollAnim = null; } }
+    function smoothScrollTo(target, duration = 600){
+      cancelSmoothScroll();
+      const start = scrollEl.scrollTop;
+      const change = target - start;
+      const startTime = performance.now();
+      const easeOutCubic = t => (--t)*t*t+1;
+      function animate(now){
+        const t = Math.min(1, (now - startTime) / duration);
+        const val = start + change * easeOutCubic(t);
+        scrollEl.scrollTop = val;
+        if(t < 1) _scrollAnim = requestAnimationFrame(animate); else _scrollAnim = null;
+      }
+      _scrollAnim = requestAnimationFrame(animate);
+    }
+    let _lastFollow = 0;
+    function scrollFollowDuringTyping(){
+      const now = performance.now();
+      if(now - _lastFollow > 80){ // throttle to ~12fps
+        if(isUserNearBottom()) smoothScrollTo(scrollEl.scrollHeight, 380);
+        _lastFollow = now;
+      }
+    }
+
+    function isUserNearBottom(threshold = 96){
+      // returns true if the user is already scrolled close to bottom
+      try{
+        return (scrollEl.scrollHeight - (scrollEl.scrollTop + scrollEl.clientHeight)) < threshold;
+      }catch(e){ return true; }
+    }
+
+    // Theme + transparency
+    if(qs('theme') === 'light'){
+      document.documentElement.style.setProperty('--bg', '#e5ddd5');
+      document.documentElement.style.setProperty('--bubble-them', '#ffffff');
+      document.documentElement.style.setProperty('--bubble-me', '#d9fdd3');
+      document.documentElement.style.setProperty('--text', '#111');
+      document.documentElement.style.setProperty('--panel', '#ffffffcc');
+    }
+    if(qs('transparent') === '1') document.body.classList.add('trans');
+
+    // Optional start background
+    const startBg = qs('bg');
+    if(startBg) setBackground(startBg);
+
+    // Panel toggle
+    const panel = document.getElementById('panel');
+    document.addEventListener('keydown', e=>{ if(e.key.toLowerCase()==='c'){ panel.classList.toggle('hidden'); }});
+
+    // Polygon background controls (from polygon-bg.js)
+    const polyToggle = document.getElementById('polyToggle');
+    const polySpeed = document.getElementById('polySpeed');
+    if(polyToggle){
+      polyToggle.addEventListener('change', ()=>{ window.polyBackground && window.polyBackground.setEnabled(!!polyToggle.checked); });
+      polySpeed.addEventListener('input', ()=>{ window.polyBackground && window.polyBackground.setSpeed(parseFloat(polySpeed.value)); });
+      // default: enabled
+      polyToggle.checked = true;
+      window.addEventListener('load', ()=>{ window.polyBackground && window.polyBackground.setEnabled(true); });
+    }
+
+    // Demo timeline: loaded from external offline-chat.js if present
+    const demo = window.offlineDemo || [];
+
+    let ws, wsUrl = qs('ws');
+    if(wsUrl) connectWS(wsUrl);
+
+    function connectWS(url){
+      try{
+        ws = new WebSocket(url);
+        ws.onopen   = ()=>{ /* status entfernt */ };
+        ws.onclose  = ()=>{ /* status entfernt */ setTimeout(()=>connectWS(url), 1200); };
+        ws.onerror  = ()=>{ /* status entfernt */ };
+        ws.onmessage= (ev)=>{
+          try{ handleCommand(JSON.parse(ev.data)); } catch(e){ console.warn('Bad payload', e); }
+        };
+      }catch(e){ console.error(e); }
+    }
+
+    // ===== Rendering mit GSAP Animationen =====
+    function addMessage({role='them', name='Person', avatar='', text='', media=null, time=null, revealDuration=null, onComplete=null}){
+      const row = document.createElement('div');
+      row.className = `row ${role}`;
+      row.style.opacity = '0'; // Start unsichtbar für Animation
+
+      const av = document.createElement('img');
+      av.className='avatar';
+      av.src = avatar || 'https://i.pravatar.cc/64?u='+encodeURIComponent(name);
+      av.alt = 'avatar';
+
+      const bubble = document.createElement('div');
+      bubble.className='bubble';
+
+      // Text container (for typewriter reveal)
+      const textContainer = document.createElement('div');
+      textContainer.className = 'text';
+      if(!revealDuration){
+        textContainer.innerHTML = sanitize(text).replace(/\n/g,'<br/>');
+      } else {
+        textContainer.innerHTML = ''; // will be filled by typewriter
+      }
+      bubble.appendChild(textContainer);
+
+      if(media){
+        const m = document.createElement('div');
+        m.className='media';
+        if(/\.(mp4|webm|mov)(\?|$)/i.test(media)){
+          const v = document.createElement('video'); v.src = media; v.controls=false; v.autoplay=true; v.loop=true; v.muted=true; v.playsInline=true; m.appendChild(v);
+        } else {
+          const i = document.createElement('img'); i.src = media; i.alt='media'; m.appendChild(i);
+        }
+        bubble.appendChild(m);
+      }
+
+  const meta = document.createElement('div');
+  meta.className = 'meta';
+  const nameEl = document.createElement('span'); nameEl.className='name'; nameEl.textContent = name;
+  const timeEl = document.createElement('span'); timeEl.className='time'; timeEl.textContent = time || nowStr();
+  meta.append(nameEl, timeEl);
+  bubble.appendChild(meta);
+
+  if(role==='them'){ row.append(av, bubble); } else { row.append(bubble, av); }
+      scrollEl.appendChild(row);
+
+      // GSAP Animation: Slide-in von links/rechts mit Bounce
+      gsap.fromTo(row, 
+        { 
+          x: role === 'them' ? -50 : 50, 
+          opacity: 0, 
+          scale: 0.8 
+        }, 
+        { 
+          x: 0, 
+          opacity: 1, 
+          scale: 1, 
+          duration: 0.6, 
+          ease: "back.out(1.7)" 
+        }
+      );
+
+  // smooth scroll to bottom if user is near bottom (don't steal scroll)
+  if(isUserNearBottom()) smoothScrollTo(scrollEl.scrollHeight, 600);
+
+      // Play sound immediately (or when reveal completes?) — keep immediate for feedback
+      try { snd.currentTime = 0; snd.play().catch(()=>{}); } catch{}
+
+      // If revealDuration is set, animate text reveal and call onComplete after finished
+      if(revealDuration && revealDuration > 0){
+        const safe = sanitize(text || '');
+        let idx = 0;
+        const total = safe.length;
+        // Avoid division by zero
+        const interval = Math.max(10, Math.round(revealDuration / Math.max(1, total)));
+        const timer = setInterval(()=>{
+          idx++;
+          textContainer.innerHTML = safe.slice(0, idx).replace(/\n/g,'<br/>');
+          // keep scrolling while typing (throttled)
+          scrollFollowDuringTyping();
+          if(idx >= total){
+            clearInterval(timer);
+            if(typeof onComplete === 'function') onComplete();
+          }
+        }, interval);
+      }
+    }
+
+    function setTyping(on=true, name='', avatar='', role='them'){ 
+      // Update visibility
+      typingRow.classList.toggle('hidden', !on);
+      if(on) {
+        // Ensure avatar src
+        typingAvatar.src = avatar || `https://i.pravatar.cc/64?u=${encodeURIComponent(name)}`;
+
+        // Arrange typingRow children depending on role (them = avatar left, me = avatar right)
+        typingRow.className = `row ${role}`;
+        // Ensure ordering: for 'them' -> avatar, bubble ; for 'me' -> bubble, avatar
+        const bubble = typingRow.querySelector('.bubble');
+        const av = typingAvatar;
+        if(role === 'them'){
+          if(typingRow.firstElementChild !== av){ typingRow.insertBefore(av, bubble); }
+        } else {
+          if(typingRow.lastElementChild !== av){ typingRow.appendChild(av); }
+        }
+
+        gsap.fromTo(typingRow, { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.3 });
+        // Reset any lingering dot tweens and start the typing animation
+        gsap.killTweensOf('.dot');
+        gsap.timeline({ repeat: -1 })
+          .to('.dot:nth-child(1)', { scale: 1.2, opacity: 1, duration: 0.4, ease: "power2.inOut" })
+          .to('.dot:nth-child(1)', { scale: 1, opacity: 0.3, duration: 0.4, ease: "power2.inOut" }, "+=0.1")
+          .to('.dot:nth-child(2)', { scale: 1.2, opacity: 1, duration: 0.4, ease: "power2.inOut" }, "-=0.2")
+          .to('.dot:nth-child(2)', { scale: 1, opacity: 0.3, duration: 0.4, ease: "power2.inOut" })
+          .to('.dot:nth-child(3)', { scale: 1.2, opacity: 1, duration: 0.4, ease: "power2.inOut" }, "-=0.2")
+          .to('.dot:nth-child(3)', { scale: 1, opacity: 0.3, duration: 0.4, ease: "power2.inOut" });
+      } else {
+        gsap.killTweensOf('.dot');
+        gsap.to('.dot', { scale: 1, opacity: 0.3, duration: 0.2 });
+      }
+  // keep view following smoothly if user hasn't scrolled up
+  if(isUserNearBottom()) smoothScrollTo(scrollEl.scrollHeight, 360);
+    }
+
+    function clearChat(){ 
+      gsap.to(scrollEl.children, { 
+        opacity: 0, 
+        y: -20, 
+        duration: 0.3, 
+        stagger: 0.1, 
+        onComplete: () => { scrollEl.innerHTML=''; } 
+      });
+    }
+
+    function setBackground(url){
+      if(!url){ bgImg.src=''; bgVid.src=''; return; }
+      if(/\.(mp4|webm|mov)(\?|$)/i.test(url)){
+        bgVid.src = url; bgVid.style.display='block'; bgImg.style.display='none';
+        gsap.fromTo(bgVid, { opacity: 0 }, { opacity: 1, duration: 1 });
+      } else { 
+        bgImg.src = url; bgImg.style.display='block'; bgVid.style.display='none'; 
+        gsap.fromTo(bgImg, { opacity: 0 }, { opacity: 1, duration: 1 });
+      }
+    }
+
+    function nowStr(){
+      const d=new Date(); return d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+    }
+
+    function sanitize(s){
+      return (s||'').replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
+    }
+
+    // ===== Command handler =====
+    function handleCommand(cmd){
+      // Schema examples below
+      switch(cmd.type){
+        case 'msg':      addMessage(cmd); break;
+        case 'typing':   setTyping(!!cmd.on, cmd.name||'', cmd.avatar||'', cmd.role||'them'); break;
+        case 'clear':    clearChat(); break;
+        case 'bg':       setBackground(cmd.url||''); break;
+        case 'ping':     ws && ws.send(JSON.stringify({type:'pong'})); break;
+        case 'demo':     runDemo(); break;
+        default: console.warn('Unknown cmd', cmd);
+      }
+    }
+
+    // ===== Demo runner =====
+    let demoRun = null;
+
+    // Calculate typing duration from text length with a random factor
+    function typingDurationFor(text){
+      const clean = String(text || '').trim();
+      const len = Math.max(0, clean.length);
+      const base = 350;                // base ms
+      const perChar = 45;              // ms per character
+      let dur = base + perChar * len;
+      // Short messages shouldn't be too short
+      if(len < 6) dur = Math.max(dur, 520);
+      // Random multiplier between 0.85 and 1.25
+      const mul = 0.85 + Math.random() * 0.4;
+      dur = Math.round(dur * mul);
+      // Clamp to reasonable bounds
+      dur = Math.max(350, Math.min(dur, 5000));
+      return dur;
+    }
+
+    function runDemo(){
+      console.log('DEMO_START');
+      if(demoRun){ clearTimeout(demoRun.t); demoRun = null; }
+      clearChat();
+      let i=0;
+      const step = ()=>{
+  if(i>=demo.length){ setTyping(false); console.log('DEMO_END'); return; }
+        const item = demo[i++];
+
+        // Start after the specified delay
+        demoRun = { t: setTimeout(()=>{
+          // If item is a typing-only marker, perform a lookahead to pick next message's author
+          if(item.typing && !item.msg){
+            const next = demo.slice(i).find(it => it.msg);
+            if(next && next.msg){
+              const text = next.msg.text || '';
+              // allow overriding typing duration on the marker or on the next message
+              const dur = (item.typingDuration ?? next.typingDuration ?? next.msg.typingDuration) || typingDurationFor(text);
+              setTyping(true, next.msg.name, next.msg.avatar, next.msg.role || 'them');
+              // show typing for dur then continue
+              clearTimeout(demoRun.t);
+              demoRun = { t: setTimeout(()=>{ setTyping(false); step(); }, dur) };
+              return;
+            } else {
+              // no upcoming message, just show a short typing pulse
+              const dur = 600 + Math.round(Math.random()*400);
+              setTyping(true);
+              clearTimeout(demoRun.t);
+              demoRun = { t: setTimeout(()=>{ setTyping(false); step(); }, dur) };
+              return;
+            }
+          }
+
+          // If item contains a message, show typing (derived from its text) before the message
+          if(item.msg){
+            const text = item.msg.text || '';
+            // allow overriding typing duration on the item or inside the msg itself
+            const dur = (item.typingDuration ?? item.msg.typingDuration) || typingDurationFor(text);
+            // Keep typing indicator visible while the message is being typed into the bubble
+            setTyping(true, item.msg.name, item.msg.avatar, item.msg.role || 'them');
+            // Only use typewriter/reveal for messages coming from 'me' (the local persona)
+            clearTimeout(demoRun.t);
+            if((item.msg.role || 'them') === 'me'){
+              addMessage({...item.msg, revealDuration: dur, onComplete: ()=>{ setTyping(false); step(); }});
+            } else {
+              // For others, show normally (no reveal) but keep typing indicator for the computed duration
+              setTimeout(()=>{ setTyping(false); addMessage(item.msg); step(); }, dur);
+            }
+            return;
+          }
+
+          // Fallback: if item was neither typing nor msg, continue
+          step();
+
+        }, item.delay) };
+      };
+      step();
+    }
+
+    // ===== Local panel actions =====
+    document.getElementById('send').onclick = ()=>{
+      const payload = {
+        type:'msg',
+        role: document.getElementById('role').value,
+        name: document.getElementById('name').value || 'Person',
+        avatar: document.getElementById('avatar').value,
+        text: document.getElementById('text').value,
+        media: document.getElementById('media').value || null,
+      };
+
+      // If the message is from the local 'me' role, simulate typing and show typewriter effect
+      if(payload.role === 'me'){
+        const dur = typingDurationFor(payload.text);
+        setTyping(true, payload.name, payload.avatar, 'me');
+        // Add message with revealDuration and clear typing after complete
+        addMessage({...payload, revealDuration: dur, onComplete: ()=>{ setTyping(false); }});
+      } else {
+        addMessage(payload);
+      }
+
+      if(ws && ws.readyState===1) ws.send(JSON.stringify(payload));
+      document.getElementById('text').value='';
+      document.getElementById('media').value='';
+    };
+    document.getElementById('demo').onclick  = ()=> handleCommand({type:'demo'});
+    document.getElementById('clear').onclick = ()=> handleCommand({type:'clear'});
+    document.getElementById('bgbtn').onclick = ()=> handleCommand({type:'bg', url: document.getElementById('bgurl').value});
+
+    // Auto-start demo if no WS
+    if(!wsUrl) runDemo();
+  </script>
+</body>
+</html>
