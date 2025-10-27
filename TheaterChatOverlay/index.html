@@ -4,6 +4,19 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Theater Chat Overlay</title>
+  <script>
+    // Inline: set classes early to avoid flash when ?transparent=1 or ?header=0|false|hide
+    (function(){
+      try{
+        var params = new URLSearchParams(location.search);
+        var hdr = (params.get('header') || '').toLowerCase();
+        var trans = (params.get('transparent') || '').toLowerCase();
+        if(trans === '1' || trans === 'true') document.documentElement.classList.add('trans');
+        if(hdr === '0' || hdr === 'false' || hdr === 'hide') document.documentElement.classList.add('no-topbar');
+      }catch(e){/* ignore */}
+    })();
+  </script>
+
   <style>
     :root {
       --bg: #0b141a;
@@ -152,6 +165,16 @@
       box-shadow: var(--topbar-shadow);
       color: var(--topbar-text);
       transition: background 0.35s ease, color 0.2s ease, box-shadow 0.35s ease;
+    }
+
+    /* Hide topbar entirely (no flash) when requested via URL param */
+    html.no-topbar .topbar {
+      display: none !important;
+      visibility: hidden !important;
+      height: 0 !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      overflow: hidden !important;
     }
 
     .topbar .left {
@@ -540,13 +563,14 @@
       display: none !important;
     }
 
-    body.trans {
+    /* support applying 'trans' early to <html> (script sets it) as well as body */
+    html.trans, body.trans {
       background: transparent;
       --bg: transparent;
     }
 
-    body.trans .bg-media,
-    body.trans .scrim {
+    html.trans .bg-media, html.trans .scrim,
+    body.trans .bg-media, body.trans .scrim {
       display: none;
     }
 
