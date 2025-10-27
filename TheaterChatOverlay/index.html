@@ -306,7 +306,7 @@
     .bubbles {
       display: flex;
       flex-direction: column;
-      gap: clamp(6px, 1.4vh, 10px);
+      gap: 0;
       max-width: min(
         calc(100% - (var(--avatar-size) + var(--row-gap) * 1.5) - var(--center-gap)),
         var(--bubble-max)
@@ -610,6 +610,133 @@
         scroll-behavior: auto !important;
       }
     }
+
+    /* --- Cluster-Layout & Abstände --- */
+    :root {
+      --cluster-gap: 4px;
+      --cluster-radius: 18px;
+      --cluster-tight: 8px;
+    }
+
+    .bubbles .bubble + .bubble {
+      margin-top: var(--cluster-gap);
+    }
+
+    .bubble {
+      border-radius: var(--cluster-radius);
+    }
+
+    .bubble .meta {
+      display: none;
+    }
+
+    /* Positionsklassen: werden via JS gesetzt */
+    .bubble.is-single {
+      border-radius: var(--cluster-radius);
+    }
+
+    .bubble.is-first {}
+
+    .bubble.is-middle {}
+
+    .bubble.is-last {}
+
+    /* Incoming (them): asymmetrische Radien, damit Bubbles zusammenfließen */
+    .row.them .bubble.is-first {
+      border-top-left-radius: var(--cluster-radius);
+      border-top-right-radius: var(--cluster-radius);
+      border-bottom-right-radius: var(--cluster-tight);
+      border-bottom-left-radius: var(--cluster-radius);
+    }
+
+    .row.them .bubble.is-middle {
+      border-top-left-radius: var(--cluster-tight);
+      border-top-right-radius: var(--cluster-radius);
+      border-bottom-right-radius: var(--cluster-tight);
+      border-bottom-left-radius: var(--cluster-radius);
+    }
+
+    .row.them .bubble.is-last {
+      border-top-left-radius: var(--cluster-tight);
+      border-top-right-radius: var(--cluster-radius);
+      border-bottom-right-radius: var(--cluster-radius);
+      border-bottom-left-radius: var(--cluster-radius);
+    }
+
+    /* Outgoing (me) */
+    .row.me .bubble.is-first {
+      border-top-left-radius: var(--cluster-radius);
+      border-top-right-radius: var(--cluster-radius);
+      border-bottom-left-radius: var(--cluster-tight);
+      border-bottom-right-radius: var(--cluster-radius);
+    }
+
+    .row.me .bubble.is-middle {
+      border-top-left-radius: var(--cluster-radius);
+      border-top-right-radius: var(--cluster-tight);
+      border-bottom-left-radius: var(--cluster-tight);
+      border-bottom-right-radius: var(--cluster-radius);
+    }
+
+    .row.me .bubble.is-last {
+      border-top-left-radius: var(--cluster-radius);
+      border-top-right-radius: var(--cluster-tight);
+      border-bottom-left-radius: var(--cluster-radius);
+      border-bottom-right-radius: var(--cluster-radius);
+    }
+
+    /* Meta nur bei first/single sichtbar */
+    .bubble.is-first .meta,
+    .bubble.is-single .meta {
+      display: flex;
+    }
+
+    /* Tail (nur bei last/single) */
+    .bubble::after {
+      content: '';
+      position: absolute;
+      bottom: -2px;
+      width: 12px;
+      height: 12px;
+      transform: rotate(45deg);
+      filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.15));
+      display: none;
+    }
+
+    .row.them .bubble.is-last::after,
+    .row.them .bubble.is-single::after {
+      display: block;
+      left: -4px;
+      background: var(--bubble-them);
+    }
+
+    .row.me .bubble.is-last::after,
+    .row.me .bubble.is-single::after {
+      display: block;
+      right: -4px;
+      background: var(--bubble-me);
+    }
+
+    body.theme-light .row.them .bubble.is-last::after,
+    body.theme-light .row.them .bubble.is-single::after,
+    body.theme-light .row.me .bubble.is-last::after,
+    body.theme-light .row.me .bubble.is-single::after {
+      box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.04) inset;
+    }
+
+    /* Mini-Optimierung */
+    .bubble .text {
+      line-height: 1.4;
+    }
+
+    .bubble .text br + br {
+      line-height: 0;
+    }
+
+    .row.them,
+    .row.me {
+      gap: 10px;
+    }
   </style>
 </head>
 <body class="theme-dark">
@@ -718,6 +845,7 @@
     const typingRow = document.getElementById('typingRow');
     const typingAvatar = document.getElementById('typingAvatar');
     const snd = document.getElementById('snd');
+    const FEATURES = { readTicks: false, reactions: false };
     const panel = document.getElementById('panel');
     const bgImg = document.getElementById('bgImage');
     const bgVid = document.getElementById('bgVideo');
@@ -1217,6 +1345,22 @@
       maybeAutoScroll(360);
     }
 
+    // Mark: cluster-helper
+    function updateClusterClasses(bubblesEl) {
+      if (!bubblesEl) return;
+      const bubbles = Array.from(bubblesEl.querySelectorAll('.bubble'));
+      bubbles.forEach((b) => b.classList.remove('is-single', 'is-first', 'is-middle', 'is-last'));
+      if (bubbles.length === 1) {
+        bubbles[0].classList.add('is-single');
+        return;
+      }
+      bubbles.forEach((b, i) => {
+        if (i === 0) b.classList.add('is-first');
+        else if (i === bubbles.length - 1) b.classList.add('is-last');
+        else b.classList.add('is-middle');
+      });
+    }
+
     function addMessage({ role = 'them', name = 'Person', avatar = '', text = '', media = null, time = null, revealDuration = null, quote = null, onComplete = null }) {
       const lastRow = scrollEl.lastElementChild;
       const canGroup =
@@ -1272,6 +1416,7 @@
           }
         }
         group.appendChild(bubble);
+        updateClusterClasses(group);
         if (!prefersReducedMotion) {
           gsap.fromTo(bubble, { opacity: 0, y: 8, scale: 0.98 }, { opacity: 1, y: 0, scale: 1, duration: 0.36, ease: 'power2.out' });
         }
@@ -1288,6 +1433,7 @@
         const bubbleGroup = document.createElement('div');
         bubbleGroup.className = 'bubbles';
         bubbleGroup.appendChild(bubble);
+        updateClusterClasses(bubbleGroup);
 
         if (role === 'them') {
           row.append(avatarImg, bubbleGroup);
