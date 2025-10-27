@@ -5,6 +5,13 @@ Kompakter Overlay für Projektor/OBS. Läuft allein mit Demo-Timeline oder live 
 ## Start
 - **Nur Demo:** Öffne `index.html` im Browser.
 - **Mit Live-Steuerung:** `npm install` und dann `npm start` starten, dann `index.html` öffnen. In OBS als *Browser Source* einbinden.
+- **Chat Studio:** Für das Zusammenstellen eigener Timelines `editor.html` im Browser öffnen.
+
+## Chat Studio (editor.html)
+- Timeline-Ansicht mit Editierformular zum Anlegen, Duplizieren und Umsortieren einzelner Nachrichten.
+- Speichert Sequenzen lokal im Browser (`localStorage`) und bietet eine Projekt-Auswahl für schnelle Wechsel.
+- Importiert bestehende JSON/Base64-Spezifikationen und exportiert Base64-Strings für `?customChat=` in `index.html`.
+- Autosave stellt beim erneuten Öffnen den letzten Stand wieder her.
 
 **URL-Parameter:**
 - `?ws=ws://localhost:8080`  WebSocket-URL
