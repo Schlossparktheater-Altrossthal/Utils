@@ -127,7 +127,11 @@ Kompakter Overlay für Projektor/OBS. Läuft allein mit Demo-Timeline oder live 
     </div>
   </div>
 
-  <audio id="snd" preload="auto" src="https://cdn.jsdelivr.net/gh/limitlessgreen/cdn-audio@main/ui/pop.mp3"></audio>
+  <audio
+    id="snd"
+    preload="auto"
+    src="https://assets.mixkit.co/active_storage/sfx/2574/2574-preview.mp3"
+  ></audio>
 
   <script>
     // ===== Utilities =====
