@@ -346,14 +346,16 @@
 
       // If revealDuration is set, animate text reveal and call onComplete after finished
       if(revealDuration && revealDuration > 0){
-        const safe = sanitize(text || '');
+        const originalText = String(text || '');
         let idx = 0;
-        const total = safe.length;
+        const total = originalText.length;
         // Avoid division by zero
         const interval = Math.max(10, Math.round(revealDuration / Math.max(1, total)));
         const timer = setInterval(()=>{
           idx++;
-          textContainer.innerHTML = safe.slice(0, idx).replace(/\n/g,'<br/>');
+          const currentSlice = originalText.slice(0, idx);
+          const safeSlice = sanitize(currentSlice).replace(/\n/g,'<br/>');
+          textContainer.innerHTML = safeSlice;
           // keep scrolling while typing (throttled)
           scrollFollowDuringTyping();
           if(idx >= total){
