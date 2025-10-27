@@ -11,6 +11,7 @@ Kompakter Overlay für Projektor/OBS. Läuft allein mit Demo-Timeline oder live 
 - `&theme=dark|light`
 - `&bg=<Bild-oder-Video-URL>`
 - `&transparent=1`  macht Hintergrund transparent (für OBS)
+ - `&header=0|false|hide`  versteckt die Kopfzeile (praktisch für enge OBS‑Layouts)
 
 ---
 
@@ -349,6 +350,11 @@ Sende per WebSocket:
 ## OBS-Hinweise
 - *Browser Source*: Breite×Höhe auf Leinwandauflösung stellen (z. B. 1920×1080).
 - *Transparenz*: `?transparent=1` am URL anhängen.
+ - *Header ausblenden*: `?header=0` oder `?header=false` entfernt die Kopfzeile, z. B.:
+```
+http://localhost:3000/index.html?transparent=1&header=0
+```
+Nützlich, wenn du nur die Chat‑Bubbles in einer Szene zeigen willst.
 - *Interaktion*: Panel mit Taste **C**.
 
 ## Erweiterungen

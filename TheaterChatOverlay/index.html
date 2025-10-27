@@ -244,6 +244,15 @@
     }
     populateParticipants();
 
+    // Hide header if URL param says so: ?header=0 or ?header=false or ?header=hide
+    (function(){
+      const hdr = qs('header');
+      if(hdr === '0' || hdr === 'false' || hdr === 'hide'){
+        const h = document.querySelector('.topbar') || document.getElementById('chatHeader');
+        if(h) h.style.display = 'none';
+      }
+    })();
+
     let ws, wsUrl = qs('ws');
     if(wsUrl) connectWS(wsUrl);
 
