@@ -10,6 +10,20 @@
       --panel: #111a20cc;
       --bubble-me: #005c4b;
       --bubble-them: #202c33;
+      --bubble-shadow: 0 1px 0 rgba(0, 0, 0, 0.32);
+      --bubble-tail-shadow: 0 2px 4px rgba(0, 0, 0, 0.18);
+      --bubble-tail-width: 18px;
+      --bubble-tail-height: 18px;
+      --bubble-incoming-border: rgba(255, 255, 255, 0.04);
+      --bubble-outgoing-border: rgba(9, 94, 84, 0.45);
+      --bubble-incoming-fill:
+        radial-gradient(140% 160% at 0% 0%, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0) 65%),
+        radial-gradient(160% 200% at 100% 100%, rgba(0, 0, 0, 0.24), rgba(0, 0, 0, 0) 76%),
+        var(--bubble-them);
+      --bubble-outgoing-fill:
+        radial-gradient(140% 160% at 0% 0%, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0) 70%),
+        radial-gradient(150% 210% at 100% 100%, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0) 78%),
+        var(--bubble-me);
       --text: #e9edef;
       --muted: #96a1a8;
       --accent: #25d366;
@@ -51,6 +65,18 @@
       --panel: #ffffffcc;
       --bubble-me: #d9fdd3;
       --bubble-them: #ffffff;
+      --bubble-shadow: 0 1px 0 rgba(0, 0, 0, 0.12);
+      --bubble-tail-shadow: 0 1px 2px rgba(15, 32, 42, 0.16);
+      --bubble-incoming-border: rgba(0, 0, 0, 0.06);
+      --bubble-outgoing-border: rgba(0, 0, 0, 0.08);
+      --bubble-incoming-fill:
+        radial-gradient(135% 150% at 0% 0%, rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0) 60%),
+        radial-gradient(160% 200% at 100% 100%, rgba(0, 0, 0, 0.05), rgba(0, 0, 0, 0) 78%),
+        var(--bubble-them);
+      --bubble-outgoing-fill:
+        radial-gradient(135% 150% at 0% 0%, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0) 64%),
+        radial-gradient(160% 200% at 100% 100%, rgba(0, 0, 0, 0.04), rgba(0, 0, 0, 0) 80%),
+        var(--bubble-me);
       --text: #1f2c34;
       --muted: #4a575f;
       --shadow: 0 10px 24px rgba(15, 32, 42, 0.12);
@@ -338,10 +364,11 @@
       box-sizing: border-box;
       word-break: break-word;
       overflow-wrap: anywhere;
-      background: var(--bubble-them);
+      background: var(--bubble-fill, var(--bubble-incoming-fill));
       padding: clamp(8px, 1.6vh, 12px) clamp(10px, 2vw, 16px);
       border-radius: var(--radius);
-      box-shadow: var(--shadow);
+      box-shadow: var(--bubble-shadow);
+      border: 1px solid var(--bubble-border, var(--bubble-incoming-border));
       line-height: 1.35;
       font-size: var(--font-size-base);
       position: relative;
@@ -350,10 +377,19 @@
       flex-direction: column;
       gap: clamp(6px, 1.6vh, 10px);
       transition: background 0.35s ease, color 0.2s ease, box-shadow 0.35s ease;
+      --bubble-tail-color: var(--bubble-them);
+    }
+
+    .row.them .bubble {
+      --bubble-fill: var(--bubble-incoming-fill);
+      --bubble-border: var(--bubble-incoming-border);
+      --bubble-tail-color: var(--bubble-them);
     }
 
     .row.me .bubble {
-      background: var(--bubble-me);
+      --bubble-fill: var(--bubble-outgoing-fill);
+      --bubble-border: var(--bubble-outgoing-border);
+      --bubble-tail-color: var(--bubble-me);
     }
 
     .bubble .text {
@@ -695,33 +731,35 @@
     .bubble::after {
       content: '';
       position: absolute;
-      bottom: -2px;
-      width: 12px;
-      height: 12px;
-      transform: rotate(45deg);
-      filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.15));
+      bottom: -4px;
+      width: var(--bubble-tail-width);
+      height: var(--bubble-tail-height);
+      border-radius: var(--bubble-tail-width);
       display: none;
+      background: var(--bubble-tail-color);
+      box-shadow: var(--bubble-tail-shadow);
+      transform-origin: bottom center;
     }
 
     .row.them .bubble.is-last::after,
     .row.them .bubble.is-single::after {
       display: block;
-      left: -4px;
-      background: var(--bubble-them);
+      left: calc(var(--bubble-tail-width) * -0.55);
+      transform: rotate(38deg);
     }
 
     .row.me .bubble.is-last::after,
     .row.me .bubble.is-single::after {
       display: block;
-      right: -4px;
-      background: var(--bubble-me);
+      right: calc(var(--bubble-tail-width) * -0.55);
+      transform: rotate(-38deg);
     }
 
     body.theme-light .row.them .bubble.is-last::after,
     body.theme-light .row.them .bubble.is-single::after,
     body.theme-light .row.me .bubble.is-last::after,
     body.theme-light .row.me .bubble.is-single::after {
-      box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.04) inset;
+      box-shadow: var(--bubble-tail-shadow), 0 0 0 1px rgba(0, 0, 0, 0.04) inset;
     }
 
     /* Mini-Optimierung */
