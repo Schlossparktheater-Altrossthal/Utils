@@ -81,6 +81,28 @@
     .them .bubble { background: var(--bubble-them); border-top-left-radius: 6px; }
     .me .bubble { background: var(--bubble-me); border-top-right-radius: 6px; }
 
+  /* Quote / reply styling inside a bubble */
+  .quote { display:block; background: rgba(0,0,0,0.06); color: var(--muted); padding:8px; border-radius:8px; margin-bottom:8px; font-size:0.86em; border-left:4px solid rgba(255,255,255,0.06); max-width:100%; overflow:hidden; }
+  .quote .q-author{ font-weight:700; color:var(--muted); display:block; margin-bottom:4px; }
+  .quote .q-text{ display:block; color:var(--muted); opacity:0.95; white-space:nowrap; text-overflow:ellipsis; overflow:hidden; }
+
+  /* Container for multiple bubbles from the same sender */
+  .bubbles { display:flex; flex-direction:column; gap:8px; }
+  /* Keep grouped bubbles a reasonable width and align them correctly per role */
+  .bubbles { max-width: min(72%, 680px); }
+  /* Ensure the bubbles container can shrink in flex layouts and doesn't force the row to grow */
+  /* Bubbles take remaining space beside avatar but are capped so 'me' and 'them' start at the same x */
+  .row .bubbles { flex: 1 1 auto; min-width: 0; max-width: min(72%, calc(100% - var(--avatar) - 48px)); width: auto; }
+  .row.them .bubbles { margin-left: 8px; }
+  .row.me .bubbles { margin-right: 8px; }
+  /* For 'me' rows, align grouped bubbles to the right */
+  .row.me .bubbles { align-items: flex-end; }
+
+  /* Bubble sizing/wrapping: allow shrinking and proper wrapping of long text */
+  .bubbles .bubble, .bubble { box-sizing: border-box; word-break: break-word; white-space: pre-wrap; min-width: 0; max-width: 100%; }
+  .bubbles .bubble { align-self: flex-start; }
+  .row.me .bubbles .bubble { align-self: flex-end; }
+
     .meta { display:flex; gap:8px; align-items:center; font-size:.78em; color: var(--muted); margin-top:6px; }
     .name { font-weight:600; }
     .time { opacity:.9; }
@@ -153,6 +175,8 @@
         <input id="name" placeholder="Name" value="Anna" />
       </div>
       <textarea id="text" rows="3" placeholder="Nachricht…"></textarea>
+  <input id="quoteAuthor" placeholder="(Optional) Zitat: Name" />
+  <input id="quoteText" placeholder="(Optional) Zitat: Text" />
       <div class="row2">
         <input id="avatar" placeholder="Avatar-URL" value="https://i.pravatar.cc/64?img=12" />
         <input id="media" placeholder="Medien-URL (Bild/Video)" />
@@ -382,18 +406,24 @@
     }
 
     // ===== Rendering mit GSAP Animationen =====
-    function addMessage({role='them', name='Person', avatar='', text='', media=null, time=null, revealDuration=null, onComplete=null}){
-      const row = document.createElement('div');
-      row.className = `row ${role}`;
-      row.style.opacity = '0'; // Start unsichtbar für Animation
+  function addMessage({role='them', name='Person', avatar='', text='', media=null, time=null, revealDuration=null, quote=null, onComplete=null}){
+      // Try to group with previous message from same role+name
+      const lastRow = scrollEl.lastElementChild;
+      const canGroup = lastRow && lastRow.classList && lastRow.classList.contains('row') && lastRow.classList.contains(role) && lastRow.dataset && lastRow.dataset.name === name;
 
-      const av = document.createElement('img');
-      av.className='avatar';
-      av.src = avatar || 'https://i.pravatar.cc/64?u='+encodeURIComponent(name);
-      av.alt = 'avatar';
-
+      // Create bubble (always create a bubble element)
       const bubble = document.createElement('div');
       bubble.className='bubble';
+
+      // Optional quote (reply) that appears above the message text
+      if(quote && (quote.text || quote.name)){
+        const q = document.createElement('div');
+        q.className = 'quote';
+        const qa = document.createElement('span'); qa.className='q-author'; qa.textContent = quote.name || 'Zitat';
+        const qt = document.createElement('span'); qt.className='q-text'; qt.innerHTML = sanitize(quote.text || '').replace(/\n/g,'<br/>');
+        q.appendChild(qa); q.appendChild(qt);
+        bubble.appendChild(q);
+      }
 
       // Text container (for typewriter reveal)
       const textContainer = document.createElement('div');
@@ -416,14 +446,74 @@
         bubble.appendChild(m);
       }
 
-  const meta = document.createElement('div');
-  meta.className = 'meta';
-  const nameEl = document.createElement('span'); nameEl.className='name'; nameEl.textContent = name;
-  const timeEl = document.createElement('span'); timeEl.className='time'; timeEl.textContent = time || nowStr();
-  meta.append(nameEl, timeEl);
-  bubble.appendChild(meta);
+      // meta (name/time) — show name only for the first message in a group to avoid duplication
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+      const nameEl = document.createElement('span'); nameEl.className='name'; nameEl.textContent = name;
+      const timeEl = document.createElement('span'); timeEl.className='time'; timeEl.textContent = time || nowStr();
+      meta.append(nameEl, timeEl);
+      bubble.appendChild(meta);
 
-  if(role==='them'){ row.append(av, bubble); } else { row.append(bubble, av); }
+      if(canGroup){
+        // Append bubble to existing row's .bubbles container (keep avatar from first message only)
+        const row = lastRow;
+  // If grouped, hide the meta (author+time) on subsequent bubbles (so they don't stack times/names)
+  meta.style.display = 'none';
+        // find or create bubbles container
+        let group = row.querySelector('.bubbles');
+        if(!group){
+          group = document.createElement('div');
+          group.className = 'bubbles';
+          // move any existing single bubble into the group
+          const existingBubble = Array.from(row.children).find(c=>c.classList && c.classList.contains('bubble'));
+          if(existingBubble) row.insertBefore(group, existingBubble), group.appendChild(existingBubble);
+        }
+        group.appendChild(bubble);
+
+        // light pop-in for the new bubble
+        gsap.fromTo(bubble, { opacity: 0, y: 8, scale: 0.98 }, { opacity:1, y:0, scale:1, duration: 0.36, ease: 'power2.out' });
+
+        // keep scrolling while typing or on new message if user is near bottom
+        if(isUserNearBottom()) smoothScrollTo(scrollEl.scrollHeight, 420);
+
+        // If revealDuration is set, animate text reveal inside this bubble too
+        if(revealDuration && revealDuration > 0){
+          const originalText = String(text || '');
+          let idx = 0;
+          const total = originalText.length;
+          const interval = Math.max(10, Math.round(revealDuration / Math.max(1, total)));
+          const timer = setInterval(()=>{
+            idx++;
+            const currentSlice = originalText.slice(0, idx);
+            const safeSlice = sanitize(currentSlice).replace(/\n/g,'<br/>');
+            textContainer.innerHTML = safeSlice;
+            scrollFollowDuringTyping();
+            if(idx >= total){ clearInterval(timer); if(typeof onComplete === 'function') onComplete(); }
+          }, interval);
+        }
+
+        try { snd.currentTime = 0; snd.play().catch(()=>{}); } catch{}
+
+        return; // done — grouped append complete
+      }
+
+      // Not grouped: create a new row with avatar + bubble
+      const row = document.createElement('div');
+      row.className = `row ${role}`;
+      row.dataset.name = name; // remember owner for grouping subsequent messages
+      row.style.opacity = '0'; // Start unsichtbar für Animation
+
+      const av = document.createElement('img');
+      av.className='avatar';
+      av.src = avatar || 'https://i.pravatar.cc/64?u='+encodeURIComponent(name);
+      av.alt = 'avatar';
+
+  // create a bubbles container and insert the initial bubble
+  const bubbleGroup = document.createElement('div');
+  bubbleGroup.className = 'bubbles';
+  bubbleGroup.appendChild(bubble);
+
+  if(role==='them'){ row.append(av, bubbleGroup); } else { row.append(bubbleGroup, av); }
       scrollEl.appendChild(row);
 
       // GSAP Animation: Slide-in von links/rechts mit Bounce
@@ -644,6 +734,7 @@
         avatar: document.getElementById('avatar').value,
         text: document.getElementById('text').value,
         media: document.getElementById('media').value || null,
+        quote: (document.getElementById('quoteText') && document.getElementById('quoteText').value) ? { name: (document.getElementById('quoteAuthor') && document.getElementById('quoteAuthor').value) || 'Zitat', text: document.getElementById('quoteText').value } : null,
       };
 
       // If the message is from the local 'me' role, simulate typing and show typewriter effect
@@ -659,6 +750,8 @@
       if(ws && ws.readyState===1) ws.send(JSON.stringify(payload));
       document.getElementById('text').value='';
       document.getElementById('media').value='';
+  if(document.getElementById('quoteAuthor')) document.getElementById('quoteAuthor').value='';
+  if(document.getElementById('quoteText')) document.getElementById('quoteText').value='';
     };
     document.getElementById('demo').onclick  = ()=> handleCommand({type:'demo'});
     document.getElementById('clear').onclick = ()=> handleCommand({type:'clear'});
