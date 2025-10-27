@@ -14,6 +14,7 @@
       --muted: #96a1a8;
       --accent: #25d366;
       --bubble-max: 680px;
+      --center-gap: 0px;
       --row-gap: clamp(8px, 2vw, 14px);
       --content-pad: clamp(14px, 2.4vw, 20px);
       --avatar-size: clamp(32px, 5vw, 40px);
@@ -306,7 +307,10 @@
       display: flex;
       flex-direction: column;
       gap: clamp(6px, 1.4vh, 10px);
-      max-width: min(calc(100% - (var(--avatar-size) + var(--row-gap) * 1.5)), var(--bubble-max));
+      max-width: min(
+        calc(100% - (var(--avatar-size) + var(--row-gap) * 1.5) - var(--center-gap)),
+        var(--bubble-max)
+      );
       min-width: 0;
     }
 
@@ -327,7 +331,10 @@
     }
 
     .bubble {
-      max-width: min(calc(100% - (var(--avatar-size) + var(--row-gap) * 1.5)), var(--bubble-max));
+      max-width: min(
+        calc(100% - (var(--avatar-size) + var(--row-gap) * 1.5) - var(--center-gap)),
+        var(--bubble-max)
+      );
       box-sizing: border-box;
       word-break: break-word;
       overflow-wrap: anywhere;
@@ -544,6 +551,10 @@
     }
 
     @media (max-width: 600px) {
+      :root {
+        --center-gap: clamp(24px, 12vw, 72px);
+      }
+
       .topbar {
         padding: 8px 12px;
       }
