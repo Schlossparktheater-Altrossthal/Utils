@@ -280,7 +280,67 @@
     document.addEventListener('keydown', e=>{ if(e.key.toLowerCase()==='c'){ panel.classList.toggle('hidden'); }});
 
     // Demo timeline: loaded from external offline-chat.js if present
-    const demo = window.offlineDemo || [];
+    let demo = [];
+    const demoReady = loadDemoSequence();
+
+    async function loadDemoSequence(){
+      let data = Array.isArray(window.offlineDemo) ? window.offlineDemo : [];
+      const customSpec = qs('customChat') ?? qs('chat') ?? qs('demoUrl');
+      if(typeof customSpec === 'string' && customSpec.trim()){
+        const customData = await resolveCustomChat(customSpec);
+        if(Array.isArray(customData)){
+          data = customData;
+        } else {
+          console.warn('Konnte customChat nicht laden – verwende Offline-Demo.');
+        }
+      }
+      demo = data;
+      populateParticipants();
+    }
+
+    async function resolveCustomChat(spec){
+      const trimmed = spec.trim();
+      if(!trimmed) return null;
+
+      // Direkt als JSON interpretieren
+      try {
+        const parsed = JSON.parse(trimmed);
+        if(Array.isArray(parsed)) return parsed;
+      } catch(err) { /* ignore */ }
+
+      // Optional: Base64-kodiertes JSON unterstützen (auch URL-safe Variante)
+      try {
+        let base = trimmed.replace(/\s+/g, '');
+        if(/^[A-Za-z0-9+\/_-]+={0,2}$/.test(base)){
+          base = base.replace(/-/g,'+').replace(/_/g,'/');
+          while(base.length % 4) base += '=';
+          const decoded = atob(base);
+          const parsed = JSON.parse(decoded);
+          if(Array.isArray(parsed)) return parsed;
+        }
+      } catch(err) { /* ignore */ }
+
+      // Als URL behandeln und JSON laden
+      try {
+        const url = new URL(trimmed, location.href);
+        const res = await fetch(url.toString());
+        if(!res.ok){
+          console.warn('customChat URL antwortete mit Status', res.status);
+          return null;
+        }
+        const text = await res.text();
+        try {
+          const parsed = JSON.parse(text);
+          if(Array.isArray(parsed)) return parsed;
+          console.warn('customChat URL lieferte kein Array.');
+        } catch(err){
+          console.warn('customChat URL enthielt kein gültiges JSON.');
+        }
+      } catch(err){
+        console.warn('customChat Parameter konnte nicht verarbeitet werden.', err);
+      }
+      return null;
+    }
 
     // Populate participants list from demo messages (unique names)
     function populateParticipants(){
@@ -296,7 +356,6 @@
       else if(names.length > max) el.textContent = 'Teilnehmer: ' + names.slice(0,max).join(', ') + ', …';
       else el.textContent = 'Teilnehmer: ' + names.join(', ');
     }
-    populateParticipants();
 
     // Hide header if URL param says so: ?header=0 or ?header=false or ?header=hide
     (function(){
@@ -512,7 +571,12 @@
       return dur;
     }
 
-    function runDemo(){
+    async function runDemo(){
+      await demoReady;
+      if(!Array.isArray(demo) || demo.length === 0){
+        console.warn('Keine Demo-Nachrichten gefunden.');
+        return;
+      }
       console.log('DEMO_START');
       if(demoRun){ clearTimeout(demoRun.t); demoRun = null; }
       clearChat();
