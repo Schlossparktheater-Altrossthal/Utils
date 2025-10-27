@@ -79,10 +79,11 @@
 
 <!-- Three.js + Troika (ES modules) -->
 <script type="module">
-  import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
-  import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/OrbitControls.js';
-  import { Text } from 'https://cdn.jsdelivr.net/npm/troika-three-text@0.49.0/dist/troika-three-text.esm.js';
-  import gsap from 'https://cdn.jsdelivr.net/npm/gsap@3.12.5/index.js';
+  // Use an ESM proxy to ensure internal "three" imports are rewritten for the browser
+  import * as THREE from 'https://esm.sh/three@0.160.0';
+  import { OrbitControls } from 'https://esm.sh/three@0.160.0/examples/jsm/controls/OrbitControls.js';
+  import { Text } from 'https://esm.sh/troika-three-text@0.49.0';
+  import gsap from 'https://esm.sh/gsap@3.12.5';
 
   // ---------- Tiny chat script (7s of life) ----------
   const script = [
