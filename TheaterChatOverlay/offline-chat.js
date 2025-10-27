@@ -4,6 +4,7 @@ window.offlineDemo = [
   {delay:400,  typingDuration:5000, msg:{role:'me',   name:'Regie (Admin)', avatar:'https://i.pravatar.cc/64?img=5',  text:'Kurze künstlerische Frage vor der Probe: Welche Katzenrasse ist objektiv die süßeste? Begründungen mit Dramaturgie, bitte! 🐈‍⬛🎭'}},
   {delay:800,  msg:{role:'them', name:'Lisa (Kostüm)', avatar:'https://i.pravatar.cc/64?img=45', text:'Perserkatzen. Reines Barock auf vier Pfoten. Süße in Reifröcken.'}},
   {delay:700,  typingDuration:900, msg:{role:'them', name:'Tom (Bühnenbild)', avatar:'https://i.pravatar.cc/64?img=33', text:'Maine Coons! Die treten auf und die Bühne hat plötzlich Tiefe. Pure Präsenz.'}},
+  {delay:650,  msg:{role:'them', name:'Tom (Bühnenbild)', avatar:'https://i.pravatar.cc/64?img=33', text:'Hab eine schnelle Moodboard-Skizze rausgekramt – was meint ihr zum Dschungel-Foyer?', media:'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=900&q=80'}},
   {delay:600,  msg:{role:'them', name:'Jonas (Musik)', avatar:'https://i.pravatar.cc/64?img=12', text:'Sphynx ist underrated. Minimalismus mit Emotion. Jede Falte eine Arie.'}},
   {delay:600,  msg:{role:'them', name:'Mara (Licht)', avatar:'https://i.pravatar.cc/64?img=24', text:'Britisch Kurzhaar. Dezent genervt = komödiantisches Gold. 🐾'}},
   {delay:600,  typingDuration:1100, msg:{role:'them', name:'Lena (Schauspiel)', avatar:'https://i.pravatar.cc/64?img=47', text:'Bengalkatzen. Shakespeare trifft Wildnis. Süß – und deine Gardinen sind Requisiten.'}},
@@ -13,6 +14,7 @@ window.offlineDemo = [
   {delay:600,  msg:{role:'them', name:'Tom (Bühnenbild)', avatar:'https://i.pravatar.cc/64?img=33', text:'Und keine Bengalen im Requisitenlager mehr. RIP Papierbäume 2024.'}},
   {delay:700,  typingDuration:900, msg:{role:'them', name:'Jonas (Musik)', avatar:'https://i.pravatar.cc/64?img=12', text:'Bleibt die Europäische Hauskatze: Impro-Theater in Reinform.'}},
   {delay:800,  msg:{role:'them', name:'Mara (Licht)', avatar:'https://i.pravatar.cc/64?img=24', text:'Ich programmier ein warmes Schnurr-Frontlicht. 3200K, please.'}},
+  {delay:750,  typingDuration:1200, msg:{role:'me',   name:'Regie (Admin)', avatar:'https://i.pravatar.cc/64?img=5',  text:'Zur Inspiration hier noch der Bühnenplan mit Katzengondel. Bitte Visual checken!', media:'https://images.unsplash.com/photo-1526498460520-4c246339dccb?auto=format&fit=crop&w=1000&q=80'}},
   {delay:600,  msg:{role:'them', name:'Lena (Schauspiel)', avatar:'https://i.pravatar.cc/64?img=47', text:'Method Acting: Ich übe den „leeren Blick in die Kamera“ wie eine Katze.'}},
   {delay:900,  typingDuration:5000, msg:{role:'me',   name:'Regie (Admin)', avatar:'https://i.pravatar.cc/64?img=5',  text:'Beschluss: Die süßeste Rasse ist… die, die beim Auftritt nicht vom Tisch fällt. 🏆😺'}},
 ];
