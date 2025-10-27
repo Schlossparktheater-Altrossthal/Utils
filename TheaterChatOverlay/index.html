@@ -1135,22 +1135,39 @@
         });
         wrap.appendChild(video);
       } else {
-        const img = new Image();
-        img.decoding = 'async';
-        img.loading = 'lazy';
-        img.alt = '';
-        img.addEventListener('load', () => {
-          if (img.naturalWidth && img.naturalHeight) {
-            wrap.style.aspectRatio = `${img.naturalWidth} / ${img.naturalHeight}`;
-          }
-          wrap.dataset.loaded = '1';
+          const img = document.createElement('img');
+          img.decoding = 'async';
+          // keep lazy so the browser can defer if needed
+          img.loading = 'lazy';
+          img.alt = '';
+
+          // Append the img immediately so the browser can show loading state or broken image icon
+          // and so layout reflects eventual image size when it arrives.
+          img.addEventListener('load', () => {
+            try {
+              if (img.naturalWidth && img.naturalHeight) {
+                wrap.style.aspectRatio = `${img.naturalWidth} / ${img.naturalHeight}`;
+              } else {
+                // fallback: keep the default 16:9
+              }
+              wrap.dataset.loaded = '1';
+            } catch (e) {
+              console.warn('media load handler error', e);
+            }
+            maybeAutoScroll(360);
+          });
+          img.addEventListener('error', (ev) => {
+            // keep the frame visible and mark as not-loaded; log for debugging
+            wrap.dataset.loaded = '0';
+            console.warn('media failed to load:', safe, ev);
+            // optionally show a subtle placeholder background instead of removing the element
+            // keep wrap in DOM so user sees the intended media slot
+          });
+
+          // set src after listeners attached
+          img.src = safe;
+          // ensure the img is present in the DOM so loading/broken state is visible
           wrap.appendChild(img);
-          maybeAutoScroll(360);
-        });
-        img.addEventListener('error', () => {
-          wrap.remove();
-        });
-        img.src = safe;
       }
 
       container.appendChild(wrap);
