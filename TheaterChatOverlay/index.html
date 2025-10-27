@@ -53,6 +53,12 @@
         rgba(0, 0, 0, 0.35) 60%,
         rgba(0, 0, 0, 0.65) 100%
       );
+      --composer-bg: rgba(21, 33, 40, 0.92);
+      --composer-border: rgba(255, 255, 255, 0.08);
+      --composer-placeholder: rgba(204, 213, 218, 0.6);
+      --composer-send: #00a884;
+      --composer-send-shadow: 0 8px 24px rgba(0, 168, 132, 0.35);
+      --composer-cursor: rgba(255, 255, 255, 0.75);
     }
 
     body {
@@ -95,6 +101,12 @@
         rgba(32, 44, 51, 0.18) 60%,
         rgba(32, 44, 51, 0.32) 100%
       );
+      --composer-bg: rgba(255, 255, 255, 0.92);
+      --composer-border: rgba(0, 0, 0, 0.08);
+      --composer-placeholder: rgba(46, 60, 67, 0.6);
+      --composer-send: #008069;
+      --composer-send-shadow: 0 8px 24px rgba(0, 128, 105, 0.22);
+      --composer-cursor: rgba(40, 58, 66, 0.7);
     }
 
     html,
@@ -471,6 +483,175 @@
       background: #8aa7ad;
     }
 
+    .composer {
+      padding: clamp(6px, 1.8vh, 12px) clamp(12px, 4vw, 20px) max(16px, env(safe-area-inset-bottom) + 10px);
+      background: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.32) 100%);
+      transition: opacity 0.35s ease, transform 0.35s ease;
+      pointer-events: none;
+    }
+
+    .composer.hidden {
+      opacity: 0;
+      transform: translateY(28px);
+    }
+
+    .composer-inner {
+      display: flex;
+      align-items: flex-end;
+      gap: clamp(6px, 1.8vw, 14px);
+      width: min(min(56rem, 92vw), var(--bubble-max) + var(--avatar-size) + 90px);
+      margin-inline: auto;
+    }
+
+    .composer-field {
+      flex: 1 1 auto;
+      position: relative;
+      display: flex;
+      align-items: center;
+      min-height: clamp(44px, 7vh, 58px);
+      padding: clamp(10px, 2vh, 14px) clamp(16px, 4vw, 22px);
+      background: var(--composer-bg);
+      border: 1px solid var(--composer-border);
+      border-radius: clamp(24px, 4vw, 32px);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+      overflow: hidden;
+    }
+
+    .composer-textwrap {
+      position: relative;
+      flex: 1 1 auto;
+      display: flex;
+      align-items: baseline;
+      gap: 0.25em;
+      font-size: var(--font-size-base);
+      color: var(--text);
+      pointer-events: none;
+    }
+
+    .composer-placeholder {
+      position: absolute;
+      inset-inline-start: 0;
+      top: 0;
+      font-size: var(--font-size-base);
+      color: var(--composer-placeholder);
+      opacity: 1;
+      transform: translateY(2px);
+      transition: opacity 0.2s ease, transform 0.2s ease;
+      pointer-events: none;
+    }
+
+    .composer.has-text .composer-placeholder,
+    .composer.is-typing .composer-placeholder,
+    .composer.is-sending .composer-placeholder {
+      opacity: 0;
+      transform: translateY(-6px);
+    }
+
+    .composer-text {
+      flex: 1 1 auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      min-height: 1.35em;
+    }
+
+    .composer-cursor {
+      display: none;
+      width: 2px;
+      background: var(--composer-cursor);
+      border-radius: 1px;
+      align-self: stretch;
+      animation: composer-blink 1s steps(2, start) infinite;
+      margin-inline-start: 2px;
+    }
+
+    .composer.is-typing .composer-cursor,
+    .composer.has-text .composer-cursor {
+      display: inline-block;
+    }
+
+    @keyframes composer-blink {
+      0%,
+      45% {
+        opacity: 1;
+      }
+      55%,
+      100% {
+        opacity: 0;
+      }
+    }
+
+    .composer-buttons {
+      display: flex;
+      align-items: center;
+      gap: clamp(6px, 2vw, 12px);
+      pointer-events: none;
+    }
+
+    .composer-btn {
+      width: clamp(32px, 4vw, 38px);
+      height: clamp(32px, 4vw, 38px);
+      border-radius: 50%;
+      border: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: transparent;
+      color: var(--muted);
+      opacity: 0.85;
+      pointer-events: none;
+    }
+
+    .composer-btn svg {
+      width: clamp(18px, 2.6vw, 22px);
+      height: clamp(18px, 2.6vw, 22px);
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 1.8;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .composer-btn.primary {
+      width: clamp(46px, 6vh, 54px);
+      height: clamp(46px, 6vh, 54px);
+      color: #fff;
+      background: rgba(149, 163, 170, 0.28);
+      box-shadow: none;
+      transition: background 0.28s ease, transform 0.28s ease, color 0.28s ease, box-shadow 0.28s ease;
+    }
+
+    .composer.has-text .composer-btn.primary,
+    .composer.is-ready .composer-btn.primary {
+      background: var(--composer-send);
+      box-shadow: var(--composer-send-shadow);
+      color: #fff;
+    }
+
+    .composer.is-sending .composer-btn.primary {
+      transform: translateX(4px) scale(1.05);
+    }
+
+    .composer-btn.primary svg {
+      fill: currentColor;
+      stroke: none;
+    }
+
+    .composer-btn.primary .icon-send {
+      display: none;
+    }
+
+    .composer.has-text .composer-btn.primary .icon-mic,
+    .composer.is-ready .composer-btn.primary .icon-mic,
+    .composer.is-sending .composer-btn.primary .icon-mic {
+      display: none;
+    }
+
+    .composer.has-text .composer-btn.primary .icon-send,
+    .composer.is-ready .composer-btn.primary .icon-send,
+    .composer.is-sending .composer-btn.primary .icon-send {
+      display: block;
+    }
+
     .media {
       border-radius: 12px;
       overflow: hidden;
@@ -791,6 +972,28 @@
     <symbol id="icon-info" viewBox="0 0 24 24" fill="currentColor">
       <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 4a1.3 1.3 0 1 1-1.3 1.3A1.3 1.3 0 0 1 12 6zm1.75 11h-3.5a1 1 0 0 1 0-2h.75v-3h-.5a1 1 0 0 1 0-2h1.5a1 1 0 0 1 1 1v4h.75a1 1 0 0 1 0 2z" />
     </symbol>
+    <symbol id="icon-smile" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+      <circle cx="12" cy="12" r="9" />
+      <circle cx="9" cy="10" r="1.1" fill="currentColor" stroke="none" />
+      <circle cx="15" cy="10" r="1.1" fill="currentColor" stroke="none" />
+      <path d="M8.5 14.75a5 5 0 0 0 7 0" stroke-linecap="round" />
+    </symbol>
+    <symbol id="icon-attach" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+      <path d="M7.5 12.25V7a4.5 4.5 0 0 1 9 0v7a3 3 0 0 1-6 0V8.5" stroke-linecap="round" stroke-linejoin="round" />
+    </symbol>
+    <symbol id="icon-camera" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+      <path d="M4 7.5A2.5 2.5 0 0 1 6.5 5h1.1l1.2-2h6.4l1.2 2h1.1A2.5 2.5 0 0 1 20 7.5v8A2.5 2.5 0 0 1 17.5 18H6.5A2.5 2.5 0 0 1 4 15.5z" />
+      <circle cx="12" cy="12" r="3.5" />
+      <circle cx="18" cy="9" r="0.8" fill="currentColor" stroke="none" />
+    </symbol>
+    <symbol id="icon-mic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+      <path d="M12 3a3 3 0 0 1 3 3v5a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3z" />
+      <path d="M5 11a7 7 0 0 0 14 0" stroke-linecap="round" />
+      <path d="M12 18v3" stroke-linecap="round" />
+    </symbol>
+    <symbol id="icon-send" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M3.42 2.58a.75.75 0 0 1 .86-.16l16.5 7.5a.75.75 0 0 1 0 1.36l-16.5 7.5A.75.75 0 0 1 3 18.12l2.34-2.34a1 1 0 0 0 .29-.71v-2.46a.5.5 0 0 1 .5-.5h4.6a.6.6 0 0 0 .24-1.15L5.63 9.4a1 1 0 0 1-.62-.92V4.09a.75.75 0 0 1 .41-.67z" />
+    </symbol>
   </svg>
 
   <div class="stage" id="stage">
@@ -838,6 +1041,32 @@
             </span>
           </div>
         </div>
+        <div id="composer" class="composer hidden" aria-live="polite">
+          <div class="composer-inner">
+            <button class="composer-btn" aria-hidden="true">
+              <svg class="icon-svg"><use href="#icon-smile"></use></svg>
+            </button>
+            <div class="composer-field">
+              <div class="composer-textwrap">
+                <div id="composerPlaceholder" class="composer-placeholder">Nachricht</div>
+                <div id="composerText" class="composer-text"></div>
+                <span class="composer-cursor" aria-hidden="true"></span>
+              </div>
+            </div>
+            <div class="composer-buttons" aria-hidden="true">
+              <button class="composer-btn" aria-hidden="true">
+                <svg class="icon-svg"><use href="#icon-attach"></use></svg>
+              </button>
+              <button class="composer-btn" aria-hidden="true">
+                <svg class="icon-svg"><use href="#icon-camera"></use></svg>
+              </button>
+            </div>
+            <button id="composerSend" class="composer-btn primary" aria-hidden="true">
+              <svg class="icon-svg icon-mic"><use href="#icon-mic"></use></svg>
+              <svg class="icon-svg icon-send"><use href="#icon-send"></use></svg>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -882,6 +1111,9 @@
     const scrollEl = document.getElementById('scroll');
     const typingRow = document.getElementById('typingRow');
     const typingAvatar = document.getElementById('typingAvatar');
+    const composer = document.getElementById('composer');
+    const composerText = document.getElementById('composerText');
+    const composerPlaceholder = document.getElementById('composerPlaceholder');
     const snd = document.getElementById('snd');
     const FEATURES = { readTicks: false, reactions: false };
     const panel = document.getElementById('panel');
@@ -936,9 +1168,12 @@
         clearInterval(id);
       }
       liveTimers.clear();
+      clearComposerTimers();
     }
 
     let smoothScrollAnim = null;
+    let composerTypingTimer = null;
+    let composerSendTimer = null;
 
     function cancelSmoothScroll() {
       if (smoothScrollAnim) {
@@ -1013,6 +1248,100 @@
         maybeAutoScroll(380);
         lastTypingFollow = now;
       }
+    }
+
+    function setComposerTextValue(value = '') {
+      if (!composerText) return;
+      composerText.textContent = value;
+      if (!composer) return;
+      if (value) composer.classList.add('has-text');
+      else composer.classList.remove('has-text');
+    }
+
+    function clearComposerTimers() {
+      if (composerTypingTimer) {
+        clearTrackedTimer(composerTypingTimer);
+        composerTypingTimer = null;
+      }
+      if (composerSendTimer) {
+        clearTrackedTimer(composerSendTimer);
+        composerSendTimer = null;
+      }
+    }
+
+    function showComposerShell() {
+      if (!composer) return;
+      composer.classList.remove('hidden', 'is-ready', 'is-sending');
+      composer.classList.add('is-typing');
+    }
+
+    function hideComposerShell() {
+      if (!composer) return;
+      clearComposerTimers();
+      setComposerTextValue('');
+      composer.classList.remove('is-typing', 'is-ready', 'is-sending');
+      composer.classList.add('hidden');
+    }
+
+    function typeComposerSequence(text, duration, onComplete) {
+      if (!composer || !composerText) {
+        if (typeof onComplete === 'function') onComplete();
+        return;
+      }
+
+      const content = typeof text === 'string' ? text : '';
+      const targetDuration =
+        Number.isFinite(duration) && duration > 0 ? duration : typingDurationFor(content);
+
+      clearComposerTimers();
+      showComposerShell();
+      setComposerTextValue('');
+      composer.classList.remove('is-ready', 'is-sending');
+
+      if (!content) {
+        composer.classList.remove('is-typing');
+        composerSendTimer = setTrackedTimeout(() => {
+          composerSendTimer = null;
+          if (typeof onComplete === 'function') onComplete();
+        }, 150);
+        return;
+      }
+
+      if (prefersReducedMotion || targetDuration <= 0) {
+        setComposerTextValue(content);
+        composer.classList.remove('is-typing');
+        composer.classList.add('is-ready');
+        composerSendTimer = setTrackedTimeout(() => {
+          composerSendTimer = null;
+          composer.classList.add('is-sending');
+          if (typeof onComplete === 'function') onComplete();
+        }, 200);
+        return;
+      }
+
+      composer.classList.add('is-typing');
+      let index = 0;
+      const total = content.length;
+      const step = Math.max(24, Math.round(targetDuration / Math.max(1, total)));
+
+      composerTypingTimer = setTrackedInterval(() => {
+        index += 1;
+        setComposerTextValue(content.slice(0, index));
+        scrollFollowDuringTyping();
+        if (index >= total) {
+          if (composerTypingTimer) {
+            clearTrackedTimer(composerTypingTimer);
+            composerTypingTimer = null;
+          }
+          composer.classList.remove('is-typing');
+          composer.classList.add('is-ready');
+          composerSendTimer = setTrackedTimeout(() => {
+            composerSendTimer = null;
+            composer.classList.add('is-sending');
+            if (typeof onComplete === 'function') onComplete();
+          }, 220);
+        }
+      }, step);
     }
 
     function clamp01(n) {
@@ -1347,6 +1676,7 @@
 
     function setTyping(on = true, name = '', avatar = '', role = 'them') {
       if (!on) {
+        hideComposerShell();
         typingRow.classList.add('hidden');
         if (typingTl) {
           typingTl.kill();
@@ -1358,18 +1688,28 @@
         return;
       }
 
+      if (role === 'me') {
+        hideComposerShell();
+        showComposerShell();
+        setComposerTextValue('');
+        typingRow.classList.add('hidden');
+        if (typingTl) {
+          typingTl.kill();
+          typingTl = null;
+        }
+        maybeAutoScroll(360);
+        return;
+      }
+
+      hideComposerShell();
       typingRow.classList.remove('hidden');
       typingAvatar.src = safeUrl(avatar) || `https://i.pravatar.cc/64?u=${encodeURIComponent(name || 'avatar')}`;
       typingRow.classList.remove('me', 'them');
-      typingRow.classList.add(role === 'me' ? 'me' : 'them');
+      typingRow.classList.add('them');
 
       const bubble = typingRow.querySelector('.bubble');
-      if (role === 'them') {
-        if (typingRow.firstElementChild !== typingAvatar) {
-          typingRow.insertBefore(typingAvatar, bubble);
-        }
-      } else if (typingRow.lastElementChild !== typingAvatar) {
-        typingRow.appendChild(typingAvatar);
+      if (typingRow.firstElementChild !== typingAvatar) {
+        typingRow.insertBefore(typingAvatar, bubble);
       }
 
       const dots = typingRow.querySelectorAll('.dot');
@@ -1399,7 +1739,48 @@
       });
     }
 
-    function addMessage({ role = 'them', name = 'Person', avatar = '', text = '', media = null, time = null, revealDuration = null, quote = null, onComplete = null }) {
+    function addMessage({
+      role = 'them',
+      name = 'Person',
+      avatar = '',
+      text = '',
+      media = null,
+      time = null,
+      revealDuration = null,
+      quote = null,
+      onComplete = null,
+      __fromComposer = false
+    }) {
+      if (role === 'me' && !__fromComposer) {
+        const hasText = typeof text === 'string' && text.trim().length > 0;
+        if (composer && hasText) {
+          const chainedComplete = () => {
+            try {
+              if (typeof onComplete === 'function') {
+                onComplete();
+              }
+            } finally {
+              setTyping(false, '', '', 'me');
+            }
+          };
+          typeComposerSequence(text, revealDuration, () => {
+            addMessage({
+              role,
+              name,
+              avatar,
+              text,
+              media,
+              time,
+              revealDuration: null,
+              quote,
+              onComplete: chainedComplete,
+              __fromComposer: true
+            });
+          });
+          return;
+        }
+      }
+
       const lastRow = scrollEl.lastElementChild;
       const canGroup =
         lastRow &&
@@ -1555,7 +1936,7 @@
         typingTl.kill();
         typingTl = null;
       }
-      setTyping(false);
+      setTyping(false, '', '', 'them');
       gsap.killTweensOf('*');
       scrollEl.innerHTML = '';
       maybeAutoScroll(0);
@@ -1637,7 +2018,7 @@
       const step = () => {
         if (demoState !== state) return;
         if (index >= demo.length) {
-          setTyping(false);
+          setTyping(false, '', '', 'them');
           demoState = null;
           console.log('DEMO_END');
           return;
@@ -1659,7 +2040,7 @@
             setTyping(true, name, avatar, role);
             state.timer = setTrackedTimeout(() => {
               if (demoState !== state) return;
-              setTyping(false);
+              setTyping(false, '', '', role);
               step();
             }, dur);
             return;
@@ -1674,13 +2055,13 @@
             if (role === 'me') {
               addMessage({ ...message, revealDuration: dur, onComplete: () => {
                 if (demoState !== state) return;
-                setTyping(false);
+                setTyping(false, '', '', 'me');
                 step();
               } });
             } else {
               state.timer = setTrackedTimeout(() => {
                 if (demoState !== state) return;
-                setTyping(false);
+                setTyping(false, '', '', role);
                 addMessage(message);
                 step();
               }, dur);
@@ -1715,7 +2096,7 @@
       if (payload.role === 'me') {
         const dur = typingDurationFor(payload.text);
         setTyping(true, payload.name, payload.avatar, 'me');
-        addMessage({ ...payload, revealDuration: dur, onComplete: () => setTyping(false) });
+        addMessage({ ...payload, revealDuration: dur, onComplete: () => setTyping(false, '', '', 'me') });
       } else {
         addMessage(payload);
       }
