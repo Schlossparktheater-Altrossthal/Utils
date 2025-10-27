@@ -180,6 +180,12 @@
     const typingRow = document.getElementById('typingRow');
     const typingAvatar = document.getElementById('typingAvatar');
     const snd = document.getElementById('snd');
+    const tonePresets = {
+      default: 'https://cdn.jsdelivr.net/gh/limitlessgreen/cdn-audio@main/ui/pop.mp3',
+      soft: 'https://cdn.jsdelivr.net/gh/limitlessgreen/cdn-audio@main/ui/soft-pop.mp3',
+      click: 'https://cdn.jsdelivr.net/gh/limitlessgreen/cdn-audio@main/ui/click.mp3',
+      chime: 'https://cdn.jsdelivr.net/gh/limitlessgreen/cdn-audio@main/ui/chime.mp3'
+    };
     const bgImg = document.getElementById('bgImage');
     const bgVid = document.getElementById('bgVideo');
 
@@ -216,6 +222,37 @@
       }catch(e){ return true; }
     }
 
+    function clamp01(n){ return Math.min(1, Math.max(0, n)); }
+
+    function applyToneSettings(opts={}){
+      const { preset, url, volume, volumeDb, gain, playbackRate, rate } = opts;
+      let targetSrc = null;
+      const presetKey = (preset || '').toLowerCase();
+      if(typeof url === 'string' && url.trim()){
+        targetSrc = url.trim();
+      } else if(presetKey && tonePresets[presetKey]){
+        targetSrc = tonePresets[presetKey];
+      } else if(presetKey === 'default'){
+        targetSrc = tonePresets.default;
+      }
+      if(targetSrc){
+        snd.src = targetSrc;
+        snd.load();
+      }
+
+      const volRaw = volume ?? volumeDb ?? gain;
+      if(volRaw !== undefined && volRaw !== null){
+        const parsed = parseFloat(volRaw);
+        if(Number.isFinite(parsed)) snd.volume = clamp01(parsed);
+      }
+
+      const rateRaw = playbackRate ?? rate;
+      if(rateRaw !== undefined && rateRaw !== null){
+        const parsedRate = parseFloat(rateRaw);
+        if(Number.isFinite(parsedRate) && parsedRate > 0) snd.playbackRate = parsedRate;
+      }
+    }
+
     // Theme + transparency
     if(qs('theme') === 'light'){
       document.documentElement.style.setProperty('--bg', '#e5ddd5');
@@ -225,6 +262,14 @@
       document.documentElement.style.setProperty('--panel', '#ffffffcc');
     }
     if(qs('transparent') === '1') document.body.classList.add('trans');
+
+    // Tone configuration via URL parameters
+    applyToneSettings({
+      preset: qs('tone'),
+      url: qs('toneUrl'),
+      volume: qs('toneVolume'),
+      playbackRate: qs('toneRate') ?? qs('toneSpeed')
+    });
 
     // Optional start background
     const startBg = qs('bg');
@@ -440,6 +485,7 @@
         case 'typing':   setTyping(!!cmd.on, cmd.name||'', cmd.avatar||'', cmd.role||'them'); break;
         case 'clear':    clearChat(); break;
         case 'bg':       setBackground(cmd.url||''); break;
+        case 'tone':     applyToneSettings(cmd); break;
         case 'ping':     ws && ws.send(JSON.stringify({type:'pong'})); break;
         case 'demo':     runDemo(); break;
         default: console.warn('Unknown cmd', cmd);

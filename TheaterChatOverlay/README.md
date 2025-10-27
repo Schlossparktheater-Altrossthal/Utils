@@ -11,6 +11,10 @@ Kompakter Overlay für Projektor/OBS. Läuft allein mit Demo-Timeline oder live 
 - `&theme=dark|light`
 - `&bg=<Bild-oder-Video-URL>`
 - `&transparent=1`  macht Hintergrund transparent (für OBS)
+- `&tone=<preset|custom>`  Nachrichtenton auswählen (`default`, `soft`, `click`, `chime` oder eigene URL via `toneUrl`)
+- `&toneUrl=<https://…>`  eigene Audio-Quelle für den Ton (überschreibt `tone`)
+- `&toneVolume=0.0-1.0`  Lautstärke für den Ton
+- `&toneRate=0.5-2.0`  Wiedergabegeschwindigkeit (Pitch)
 
 ## Live-Kommandos (JSON)
 Sende per WebSocket:
@@ -25,6 +29,9 @@ Sende per WebSocket:
 ```
 ```json
 { "type":"bg", "url": "https://cdn.example.com/backdrops/forest.mp4" }
+```
+```json
+{ "type":"tone", "preset":"soft", "volume":0.6 }
 ```
 ```json
 { "type":"demo" }
