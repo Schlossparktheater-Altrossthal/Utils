@@ -8,8 +8,7 @@ Kompakter Overlay für Projektor/OBS. Läuft allein mit Demo-Timeline oder live 
 
 **URL-Parameter:**
 - `?ws=ws://localhost:8080`  WebSocket-URL
- - `&theme=dark|light|auto`  ("auto" folgt der System-Farbpräferenz)
- - `&start=p` (optional) Demo startet erst nach erstem Drücken der Taste "p". Alternativ `?start=keypress` oder `?start=manual` funktionieren ebenfalls.
+- `&theme=dark|light`
 - `&bg=<Bild-oder-Video-URL>`
 - `&transparent=1`  macht Hintergrund transparent (für OBS)
 - `&customChat=<JSON|Base64|URL>`  eigene Demo-Sequenz laden (Array wie in `offline-chat.js`, Alias: `chat`)
@@ -42,11 +41,7 @@ Sende per WebSocket:
 ## OBS-Hinweise
 - *Browser Source*: Breite×Höhe auf Leinwandauflösung stellen (z. B. 1920×1080).
 - *Transparenz*: `?transparent=1` am URL anhängen.
- - *Transparenz*: `?transparent=1` am URL anhängen.
 - *Interaktion*: Panel mit Taste **C**.
-
-Weitere kleine Hilfsdatei
-- `TheaterChatOverlay/bg-tile-demo.html` — eine sehr kleine Demo, die die WhatsApp-Kachel als wiederholtes Hintergrundmuster zeigt. Sie unterstützt `?mode=dark|light|auto` (auto folgt dem System) und ist nützlich, um Hintergrund-Visuals separat zu testen.
 
 ## Erweiterungen
 - OSC/MQTT Brücke (Node-RED) → WebSocket.
