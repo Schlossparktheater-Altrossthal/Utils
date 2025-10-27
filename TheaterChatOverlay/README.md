@@ -11,6 +11,7 @@ Kompakter Overlay für Projektor/OBS. Läuft allein mit Demo-Timeline oder live 
 - `&theme=dark|light`
 - `&bg=<Bild-oder-Video-URL>`
 - `&transparent=1`  macht Hintergrund transparent (für OBS)
+- `&customChat=<JSON|Base64|URL>`  eigene Demo-Sequenz laden (Array wie in `offline-chat.js`, Alias: `chat`)
 - `&tone=<preset|custom>`  Nachrichtenton auswählen (`default`, `soft`, `click`, `chime` oder eigene URL via `toneUrl`)
 - `&toneUrl=<https://…>`  eigene Audio-Quelle für den Ton (überschreibt `tone`)
 - `&toneVolume=0.0-1.0`  Lautstärke für den Ton
