@@ -1,0 +1,1086 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Theater Chat Overlay – Studio</title>
+    <style>
+      :root {
+        color-scheme: dark light;
+        --bg: #0f172a;
+        --panel: rgba(15, 23, 42, 0.85);
+        --panel-light: rgba(30, 41, 59, 0.55);
+        --surface: #1e293b;
+        --surface-light: #334155;
+        --surface-strong: #0b1120;
+        --text: #e2e8f0;
+        --text-strong: #f8fafc;
+        --muted: #94a3b8;
+        --accent: #38bdf8;
+        --accent-strong: #0ea5e9;
+        --danger: #f87171;
+        --radius: 16px;
+        --radius-sm: 12px;
+        --radius-xs: 8px;
+        --shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.55);
+        font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+      }
+
+      @media (prefers-color-scheme: light) {
+        :root {
+          --bg: #f1f5f9;
+          --panel: rgba(241, 245, 249, 0.92);
+          --panel-light: rgba(226, 232, 240, 0.6);
+          --surface: #e2e8f0;
+          --surface-light: rgba(148, 163, 184, 0.15);
+          --surface-strong: #1e293b;
+          --text: #0f172a;
+          --text-strong: #0b1120;
+          --muted: #475569;
+          --accent: #0284c7;
+          --accent-strong: #0369a1;
+        }
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: radial-gradient(circle at top left, rgba(56, 189, 248, 0.08), transparent 46%),
+          radial-gradient(circle at bottom right, rgba(139, 92, 246, 0.08), transparent 40%),
+          var(--bg);
+        color: var(--text);
+        font-family: inherit;
+        display: flex;
+        flex-direction: column;
+      }
+
+      header {
+        padding: clamp(16px, 4vw, 24px) clamp(18px, 4vw, 36px);
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 16px clamp(12px, 4vw, 24px);
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        backdrop-filter: blur(18px);
+        background: linear-gradient(120deg, rgba(15, 23, 42, 0.82), rgba(15, 23, 42, 0.35));
+        border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+        box-shadow: 0 12px 40px rgba(15, 23, 42, 0.25);
+      }
+
+      header h1 {
+        margin: 0;
+        font-weight: 700;
+        font-size: clamp(1.35rem, 3vw, 1.65rem);
+        letter-spacing: -0.01em;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      header h1 span {
+        display: inline-flex;
+        width: 38px;
+        height: 38px;
+        border-radius: 12px;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(140deg, rgba(14, 165, 233, 0.25), rgba(14, 116, 233, 0.55));
+        color: var(--accent);
+        font-size: 20px;
+      }
+
+      header .actions {
+        margin-left: auto;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 12px;
+      }
+
+      main {
+        flex: 1;
+        display: grid;
+        gap: clamp(18px, 3vw, 28px);
+        grid-template-columns: minmax(320px, 420px) minmax(340px, 1fr);
+        padding: clamp(20px, 4vw, 32px);
+      }
+
+      @media (max-width: 1080px) {
+        main {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      section {
+        background: var(--panel);
+        border-radius: var(--radius);
+        backdrop-filter: blur(22px);
+        box-shadow: var(--shadow);
+        border: 1px solid rgba(148, 163, 184, 0.24);
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+      }
+
+      section h2 {
+        margin: 0;
+        padding: clamp(16px, 3vw, 20px) clamp(18px, 3vw, 24px);
+        border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+        font-size: 1.05rem;
+        letter-spacing: 0.01em;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .timeline-header {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .timeline-stats {
+        display: flex;
+        gap: 14px;
+        font-size: 0.85rem;
+        color: var(--muted);
+      }
+
+      .timeline-controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .timeline-controls button {
+        flex: 1 1 120px;
+      }
+
+      .timeline-list {
+        list-style: none;
+        margin: 0;
+        padding: clamp(12px, 3vw, 18px);
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        overflow-y: auto;
+      }
+
+      .timeline-item {
+        background: var(--surface);
+        border-radius: var(--radius-sm);
+        padding: 14px 16px;
+        display: grid;
+        gap: 6px;
+        grid-template-columns: auto 1fr;
+        align-items: start;
+        border: 1px solid transparent;
+        transition: border-color 0.2s ease, transform 0.2s ease, background 0.2s ease;
+        cursor: pointer;
+      }
+
+      .timeline-item.selected {
+        border-color: var(--accent);
+        background: linear-gradient(135deg, rgba(14, 165, 233, 0.14), rgba(14, 165, 233, 0.02));
+        transform: translateY(-1px);
+      }
+
+      .timeline-item:hover {
+        border-color: rgba(56, 189, 248, 0.35);
+      }
+
+      .timeline-item .index {
+        font-size: 0.85rem;
+        color: var(--muted);
+      }
+
+      .timeline-item .preview {
+        font-weight: 600;
+        color: var(--text-strong);
+      }
+
+      .timeline-item .meta {
+        grid-column: 1 / -1;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        font-size: 0.78rem;
+        color: var(--muted);
+      }
+
+      form {
+        padding: clamp(16px, 3vw, 24px);
+        display: grid;
+        gap: 20px;
+        overflow-y: auto;
+      }
+
+      fieldset {
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        border-radius: var(--radius-sm);
+        padding: 18px;
+        display: grid;
+        gap: 12px;
+        min-inline-size: 0;
+      }
+
+      fieldset legend {
+        padding: 0 6px;
+        font-weight: 600;
+        color: var(--muted);
+      }
+
+      label {
+        display: grid;
+        gap: 6px;
+        font-size: 0.9rem;
+      }
+
+      input,
+      textarea,
+      select {
+        border-radius: var(--radius-xs);
+        border: 1px solid rgba(148, 163, 184, 0.3);
+        background: var(--surface-light);
+        color: inherit;
+        font: inherit;
+        padding: 10px 12px;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        min-width: 0;
+      }
+
+      textarea {
+        resize: vertical;
+        min-height: 120px;
+      }
+
+      input:focus,
+      textarea:focus,
+      select:focus {
+        outline: none;
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2);
+      }
+
+      .inline {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      .inline label {
+        flex: 1 1 120px;
+      }
+
+      button,
+      .ghost-button {
+        border-radius: var(--radius-xs);
+        border: 1px solid transparent;
+        padding: 10px 16px;
+        font: inherit;
+        cursor: pointer;
+        transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+      }
+
+      button.primary {
+        background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+        color: #0f172a;
+        font-weight: 600;
+        box-shadow: 0 10px 24px rgba(14, 165, 233, 0.3);
+      }
+
+      button.secondary {
+        background: var(--surface);
+        color: inherit;
+        border-color: rgba(148, 163, 184, 0.4);
+      }
+
+      button.danger {
+        background: rgba(248, 113, 113, 0.15);
+        color: #fecaca;
+        border-color: rgba(248, 113, 113, 0.5);
+      }
+
+      button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        box-shadow: none;
+        transform: none;
+      }
+
+      button:not(:disabled):hover {
+        transform: translateY(-1px);
+      }
+
+      .ghost-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.86rem;
+        color: var(--muted);
+        padding: 0;
+        border: none;
+        background: none;
+      }
+
+      .ghost-button:hover {
+        color: var(--accent);
+      }
+
+      .storage {
+        padding: clamp(16px, 3vw, 24px);
+        border-top: 1px solid rgba(148, 163, 184, 0.2);
+        background: var(--panel-light);
+        display: grid;
+        gap: 12px;
+      }
+
+      .storage-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: center;
+      }
+
+      .storage-row select {
+        flex: 1 1 220px;
+      }
+
+      .code-output {
+        background: var(--surface);
+        border-radius: var(--radius-sm);
+        padding: 12px;
+        font-size: 0.82rem;
+        word-break: break-all;
+        max-height: 160px;
+        overflow-y: auto;
+      }
+
+      .muted {
+        color: var(--muted);
+      }
+
+      .tag {
+        display: inline-flex;
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: rgba(148, 163, 184, 0.18);
+        color: inherit;
+        font-size: 0.72rem;
+        font-weight: 600;
+      }
+
+      .label-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .label-row .ghost-button {
+        font-size: 0.8rem;
+      }
+
+      .import-area textarea {
+        min-height: 80px;
+        font-family: "JetBrains Mono", "Fira Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      }
+
+      .footer-note {
+        text-align: center;
+        font-size: 0.75rem;
+        color: var(--muted);
+        padding: 24px;
+      }
+
+      .nowrap {
+        white-space: nowrap;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1><span>🎛️</span>Chat Overlay Studio</h1>
+      <div class="actions">
+        <button id="newProject" type="button" class="secondary">Neue Sequenz</button>
+        <button id="saveProject" type="button" class="primary">Speichern</button>
+        <button id="exportProject" type="button" class="secondary">Export (Base64)</button>
+      </div>
+    </header>
+    <main>
+      <section>
+        <h2>
+          <div class="timeline-header">
+            <span>Timeline</span>
+            <div class="timeline-stats">
+              <span id="statCount">0 Nachrichten</span>
+              <span id="statDuration">0,0 s Gesamtdauer</span>
+            </div>
+          </div>
+          <div class="timeline-controls">
+            <button id="addBefore" type="button" class="secondary" title="Vor ausgewähltem Element einfügen">Vorher einfügen</button>
+            <button id="addAfter" type="button" class="secondary" title="Nach ausgewähltem Element einfügen">Nachher einfügen</button>
+            <button id="duplicate" type="button" class="secondary" title="Ausgewähltes Element duplizieren">Duplizieren</button>
+            <button id="delete" type="button" class="danger" title="Ausgewähltes Element löschen">Löschen</button>
+          </div>
+        </h2>
+        <ol id="timeline" class="timeline-list"></ol>
+        <div class="storage">
+          <div class="storage-row">
+            <label class="nowrap" for="projectPicker">Gespeicherte Sequenzen</label>
+            <select id="projectPicker"></select>
+            <button id="loadProject" type="button" class="secondary">Laden</button>
+            <button id="removeProject" type="button" class="danger">Entfernen</button>
+          </div>
+          <div class="storage-row import-area">
+            <label class="label-row" for="importData">
+              <span>Import (JSON oder Base64)</span>
+              <button id="applyImport" type="button" class="ghost-button">Übernehmen</button>
+            </label>
+            <textarea id="importData" placeholder="Füge hier JSON oder Base64-URL ein"></textarea>
+          </div>
+        </div>
+      </section>
+      <section>
+        <h2>
+          <span>Nachricht bearbeiten</span>
+          <div class="timeline-controls">
+            <button id="moveUp" type="button" class="secondary">▲</button>
+            <button id="moveDown" type="button" class="secondary">▼</button>
+          </div>
+        </h2>
+        <form id="editorForm" autocomplete="off">
+          <fieldset>
+            <legend>Timing</legend>
+            <div class="inline">
+              <label>
+                Verzögerung (ms)
+                <input name="delay" type="number" min="0" step="50" required />
+              </label>
+              <label>
+                Tippdauer (ms)
+                <input name="typingDuration" type="number" min="0" step="50" />
+              </label>
+            </div>
+          </fieldset>
+          <fieldset>
+            <legend>Nachricht</legend>
+            <div class="inline">
+              <label>
+                Rolle
+                <select name="role">
+                  <option value="them">Team</option>
+                  <option value="me">Ich</option>
+                </select>
+              </label>
+              <label>
+                Anzeigename
+                <input name="name" type="text" placeholder="Regie (Admin)" />
+              </label>
+            </div>
+            <label>
+              Avatar URL
+              <input name="avatar" type="url" placeholder="https://…" />
+            </label>
+            <label>
+              Nachrichtentext
+              <textarea name="text" placeholder="Was soll angezeigt werden?" rows="5"></textarea>
+            </label>
+            <label>
+              Medien-URL (optional)
+              <input name="media" type="url" placeholder="https://…" />
+            </label>
+          </fieldset>
+          <fieldset>
+            <legend>Zitat (optional)</legend>
+            <div class="inline">
+              <label>
+                Zitat-Name
+                <input name="quoteName" type="text" />
+              </label>
+              <label>
+                Zitat-Avatar
+                <input name="quoteAvatar" type="url" placeholder="https://…" />
+              </label>
+            </div>
+            <label>
+              Zitat-Text
+              <textarea name="quoteText" rows="3"></textarea>
+            </label>
+          </fieldset>
+        </form>
+        <div class="storage">
+          <div class="label-row">
+            <span>Export (Base64 URL)</span>
+            <button id="copyExport" type="button" class="ghost-button">In Zwischenablage kopieren</button>
+          </div>
+          <div class="code-output" id="exportCode"></div>
+          <p class="muted">Der Export enthält die Sequenz als JSON → Base64 URL. Mit <code>?customChat=&lt;base64&gt;</code> kann der Chat in <strong>index.html</strong> geladen werden.</p>
+        </div>
+      </section>
+    </main>
+    <div class="footer-note">Speicher erfolgt lokal im Browser (localStorage). Keine Daten werden extern versendet.</div>
+
+    <script>
+      const STORAGE_KEY = 'tco.editor.projects.v1';
+      const AUTOSAVE_KEY = 'tco.editor.autosave';
+
+      const createId = (prefix) => {
+        const random = Math.random().toString(16).slice(2);
+        const base = `${prefix}-${Date.now()}-${random}`;
+        try {
+          if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+            return crypto.randomUUID();
+          }
+        } catch (err) {}
+        return base;
+      };
+
+      const blankMessage = () => ({
+        id: createId('msg'),
+        delay: 600,
+        typingDuration: 0,
+        msg: {
+          role: 'them',
+          name: 'Team',
+          avatar: '',
+          text: ''
+        }
+      });
+
+      const state = {
+        entries: [],
+        selectedId: null,
+        projects: loadProjects(),
+        dirty: false,
+        activeProject: null
+      };
+
+      function deepClone(value) {
+        if (typeof structuredClone === 'function') {
+          return structuredClone(value);
+        }
+        return JSON.parse(JSON.stringify(value));
+      }
+
+      function loadProjects() {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (!raw) return [];
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) {
+            return parsed.map((item) => ({
+              id: item.id || createId('proj'),
+              name: item.name || 'Unbenannt',
+              updatedAt: item.updatedAt || Date.now(),
+              data: Array.isArray(item.data) ? item.data : []
+            }));
+          }
+        } catch (err) {
+          console.warn('Konnte gespeicherte Projekte nicht laden', err);
+        }
+        return [];
+      }
+
+      function persistProjects() {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(state.projects));
+        } catch (err) {
+          console.warn('Speichern fehlgeschlagen', err);
+        }
+      }
+
+      function saveAutosave() {
+        try {
+          const payload = { data: state.entries, activeProject: state.activeProject };
+          localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(payload));
+        } catch (err) {
+          console.warn('Autosave fehlgeschlagen', err);
+        }
+      }
+
+      function loadAutosave() {
+        try {
+          const raw = localStorage.getItem(AUTOSAVE_KEY);
+          if (!raw) return null;
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed.data)) return parsed;
+        } catch (err) {
+          console.warn('Konnte Autosave nicht laden', err);
+        }
+        return null;
+      }
+
+      function sanitizeEntry(entry) {
+        const base = {
+          delay: Number(entry.delay) >= 0 ? Number(entry.delay) : 0,
+          msg: {
+            role: ['me', 'them'].includes(entry.msg?.role) ? entry.msg.role : 'them',
+            name: entry.msg?.name?.trim() || 'Team',
+            avatar: entry.msg?.avatar?.trim() || '',
+            text: entry.msg?.text || ''
+          }
+        };
+        if (entry.typingDuration) {
+          const typing = Number(entry.typingDuration);
+          if (!Number.isNaN(typing) && typing > 0) base.typingDuration = typing;
+        }
+        if (entry.msg?.media) {
+          const media = entry.msg.media.trim();
+          if (media) base.msg.media = media;
+        }
+        if (entry.msg?.quote) {
+          const q = entry.msg.quote;
+          const text = q.text?.trim();
+          if (text) {
+            base.msg.quote = {
+              text,
+              name: q.name?.trim() || '',
+              avatar: q.avatar?.trim() || ''
+            };
+          }
+        }
+        const merged = { ...entry, ...base, msg: { ...entry.msg, ...base.msg } };
+        if (!merged.id) merged.id = createId('msg');
+        return merged;
+      }
+
+      function cleanupForExport(entries) {
+        return entries.map((entry) => {
+          const clean = sanitizeEntry(entry);
+          const { id, ...rest } = clean;
+          const result = { delay: rest.delay, msg: { ...rest.msg } };
+          if (rest.typingDuration) result.typingDuration = rest.typingDuration;
+          if (!result.msg.avatar) delete result.msg.avatar;
+          if (!result.msg.media) delete result.msg.media;
+          if (result.msg.quote) {
+            if (!result.msg.quote.avatar) delete result.msg.quote.avatar;
+            if (!result.msg.quote.name) delete result.msg.quote.name;
+          }
+          if (!result.msg.quote || !result.msg.quote.text) delete result.msg.quote;
+          return result;
+        });
+      }
+
+      function normalizeEntries(entries) {
+        if (!Array.isArray(entries) || !entries.length) {
+          return [blankMessage()];
+        }
+        return entries.map((entry) => {
+          const base = blankMessage();
+          const sanitized = sanitizeEntry(deepClone(entry));
+          if (!sanitized.id) sanitized.id = base.id;
+          return {
+            ...base,
+            ...sanitized,
+            msg: { ...base.msg, ...sanitized.msg }
+          };
+        });
+      }
+
+      const serializer = {
+        encode(entries) {
+          const json = JSON.stringify(cleanupForExport(entries));
+          const base64 = btoa(unescape(encodeURIComponent(json)));
+          return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+        },
+        decode(payload) {
+          if (typeof payload !== 'string' || !payload.trim()) return null;
+          const trimmed = payload.trim();
+          try {
+            const parsed = JSON.parse(trimmed);
+            if (Array.isArray(parsed)) return parsed;
+          } catch (err) {}
+          try {
+            let base = trimmed.replace(/\s+/g, '');
+            base = base.replace(/-/g, '+').replace(/_/g, '/');
+            while (base.length % 4) base += '=';
+            const json = decodeURIComponent(
+              Array.prototype.map
+                .call(atob(base), (c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+                .join('')
+            );
+            const parsed = JSON.parse(json);
+            if (Array.isArray(parsed)) return parsed;
+          } catch (err) {
+            console.warn('Decoding fehlgeschlagen', err);
+          }
+          return null;
+        }
+      };
+
+      const timelineEl = document.getElementById('timeline');
+      const form = document.getElementById('editorForm');
+      const statCount = document.getElementById('statCount');
+      const statDuration = document.getElementById('statDuration');
+      const exportCode = document.getElementById('exportCode');
+      const projectPicker = document.getElementById('projectPicker');
+
+      const buttons = {
+        addBefore: document.getElementById('addBefore'),
+        addAfter: document.getElementById('addAfter'),
+        duplicate: document.getElementById('duplicate'),
+        delete: document.getElementById('delete'),
+        moveUp: document.getElementById('moveUp'),
+        moveDown: document.getElementById('moveDown'),
+        newProject: document.getElementById('newProject'),
+        saveProject: document.getElementById('saveProject'),
+        loadProject: document.getElementById('loadProject'),
+        removeProject: document.getElementById('removeProject'),
+        exportProject: document.getElementById('exportProject'),
+        copyExport: document.getElementById('copyExport'),
+        applyImport: document.getElementById('applyImport')
+      };
+
+      function selectEntry(id) {
+        state.selectedId = id;
+        renderTimeline();
+        populateForm();
+      }
+
+      function ensureSelection() {
+        if (state.selectedId && state.entries.some((entry) => entry.id === state.selectedId)) return;
+        state.selectedId = state.entries[0]?.id ?? null;
+      }
+
+      function setEntries(entries, options = {}) {
+        state.entries = normalizeEntries(entries);
+        ensureSelection();
+        renderTimeline();
+        populateForm();
+        if (!options.silent) {
+          state.dirty = true;
+          saveAutosave();
+        }
+      }
+
+      function addEntry(position = 'after') {
+        const newEntry = blankMessage();
+        const index = state.entries.findIndex((entry) => entry.id === state.selectedId);
+        if (index === -1) {
+          state.entries.push(newEntry);
+        } else if (position === 'before') {
+          state.entries.splice(index, 0, newEntry);
+        } else {
+          state.entries.splice(index + 1, 0, newEntry);
+        }
+        state.selectedId = newEntry.id;
+        state.dirty = true;
+        renderTimeline();
+        populateForm();
+        saveAutosave();
+      }
+
+      function duplicateEntry() {
+        const index = state.entries.findIndex((entry) => entry.id === state.selectedId);
+        if (index === -1) return;
+        const clone = deepClone(state.entries[index]);
+        clone.id = blankMessage().id;
+        state.entries.splice(index + 1, 0, clone);
+        state.selectedId = clone.id;
+        state.dirty = true;
+        renderTimeline();
+        populateForm();
+        saveAutosave();
+      }
+
+      function deleteEntry() {
+        if (state.entries.length <= 1) return;
+        const index = state.entries.findIndex((entry) => entry.id === state.selectedId);
+        if (index === -1) return;
+        state.entries.splice(index, 1);
+        ensureSelection();
+        state.dirty = true;
+        renderTimeline();
+        populateForm();
+        saveAutosave();
+      }
+
+      function moveSelected(direction) {
+        const index = state.entries.findIndex((entry) => entry.id === state.selectedId);
+        if (index === -1) return;
+        const target = index + direction;
+        if (target < 0 || target >= state.entries.length) return;
+        const [item] = state.entries.splice(index, 1);
+        state.entries.splice(target, 0, item);
+        state.dirty = true;
+        renderTimeline();
+        saveAutosave();
+      }
+
+      function updateEntryFromForm() {
+        const index = state.entries.findIndex((entry) => entry.id === state.selectedId);
+        if (index === -1) return;
+        const formData = new FormData(form);
+        const entry = state.entries[index];
+        entry.delay = Number(formData.get('delay')) || 0;
+        entry.typingDuration = Number(formData.get('typingDuration')) || 0;
+        entry.msg.role = formData.get('role') || 'them';
+        entry.msg.name = (formData.get('name') || '').trim();
+        entry.msg.avatar = (formData.get('avatar') || '').trim();
+        entry.msg.text = formData.get('text') || '';
+        entry.msg.media = (formData.get('media') || '').trim();
+        const quoteText = (formData.get('quoteText') || '').trim();
+        if (quoteText) {
+          entry.msg.quote = {
+            text: quoteText,
+            name: (formData.get('quoteName') || '').trim(),
+            avatar: (formData.get('quoteAvatar') || '').trim()
+          };
+        } else {
+          delete entry.msg.quote;
+        }
+        state.dirty = true;
+        renderTimeline();
+        saveAutosave();
+      }
+
+      function populateForm() {
+        const entry = state.entries.find((item) => item.id === state.selectedId);
+        if (!entry) {
+          form.reset();
+          return;
+        }
+        form.delay.value = entry.delay ?? 0;
+        form.typingDuration.value = entry.typingDuration ?? 0;
+        form.role.value = entry.msg?.role ?? 'them';
+        form.name.value = entry.msg?.name ?? '';
+        form.avatar.value = entry.msg?.avatar ?? '';
+        form.text.value = entry.msg?.text ?? '';
+        form.media.value = entry.msg?.media ?? '';
+        form.quoteName.value = entry.msg?.quote?.name ?? '';
+        form.quoteAvatar.value = entry.msg?.quote?.avatar ?? '';
+        form.quoteText.value = entry.msg?.quote?.text ?? '';
+        updateExport();
+      }
+
+      function renderTimeline() {
+        let total = 0;
+        timelineEl.innerHTML = '';
+        state.entries.forEach((entry, index) => {
+          const node = document.createElement('li');
+          node.className = 'timeline-item' + (entry.id === state.selectedId ? ' selected' : '');
+          node.dataset.id = entry.id;
+          const delaySec = Number(entry.delay) / 1000;
+          const typing = Number(entry.typingDuration) / 1000 || 0;
+          total += delaySec + typing;
+          node.innerHTML = `
+            <span class="index">${String(index + 1).padStart(2, '0')}</span>
+            <div class="preview">${escapeHtml(entry.msg?.name || 'Team')} · <span class="tag">${escapeHtml(entry.msg?.role || 'them')}</span></div>
+            <div class="meta">
+              <span>Δ ${delaySec.toFixed(2)}s</span>
+              ${typing ? `<span>✎ ${typing.toFixed(2)}s</span>` : ''}
+              <span>${escapeHtml(entry.msg?.text?.slice(0, 60) || 'Kein Text')}</span>
+            </div>`;
+          timelineEl.appendChild(node);
+        });
+        statCount.textContent = `${state.entries.length} Nachricht${state.entries.length === 1 ? '' : 'en'}`;
+        statDuration.textContent = `${total.toFixed(1)} s Gesamtdauer`;
+        updateButtons();
+        updateExport();
+      }
+
+      function updateButtons() {
+        const index = state.entries.findIndex((entry) => entry.id === state.selectedId);
+        const hasSelection = index !== -1;
+        buttons.addBefore.disabled = !hasSelection;
+        buttons.addAfter.disabled = !hasSelection;
+        buttons.duplicate.disabled = !hasSelection;
+        buttons.delete.disabled = !hasSelection || state.entries.length <= 1;
+        buttons.moveUp.disabled = !hasSelection || index <= 0;
+        buttons.moveDown.disabled = !hasSelection || index === state.entries.length - 1;
+      }
+
+      function updateExport() {
+        try {
+          const payload = serializer.encode(state.entries);
+          exportCode.textContent = payload;
+        } catch (err) {
+          exportCode.textContent = 'Export nicht möglich';
+          console.warn('Export fehlgeschlagen', err);
+        }
+      }
+
+      function escapeHtml(value) {
+        return (value || '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#039;');
+      }
+
+      function refreshProjectPicker() {
+        projectPicker.innerHTML = '';
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.textContent = 'Projekt auswählen…';
+        projectPicker.appendChild(placeholder);
+        state.projects
+          .slice()
+          .sort((a, b) => b.updatedAt - a.updatedAt)
+          .forEach((project) => {
+            const option = document.createElement('option');
+            option.value = project.id;
+            const date = new Date(project.updatedAt).toLocaleString();
+            option.textContent = `${project.name} — ${date}`;
+            projectPicker.appendChild(option);
+          });
+        if (state.activeProject) {
+          projectPicker.value = state.activeProject.id;
+        }
+      }
+
+      function createProjectSnapshot(name) {
+        const cleanEntries = cleanupForExport(state.entries);
+        return {
+          id: createId('proj'),
+          name: name || 'Unbenannt',
+          updatedAt: Date.now(),
+          data: cleanEntries
+        };
+      }
+
+      function saveProjectFlow() {
+        const name = prompt('Name der Sequenz?', state.activeProject?.name || 'Neue Sequenz');
+        if (!name) return;
+        if (state.activeProject) {
+          state.activeProject.data = cleanupForExport(state.entries);
+          state.activeProject.name = name;
+          state.activeProject.updatedAt = Date.now();
+        } else {
+          const snapshot = createProjectSnapshot(name);
+          state.projects.push(snapshot);
+          state.activeProject = snapshot;
+        }
+        persistProjects();
+        refreshProjectPicker();
+        state.dirty = false;
+        saveAutosave();
+      }
+
+      function loadProjectFlow() {
+        const id = projectPicker.value;
+        if (!id) return;
+        const project = state.projects.find((item) => item.id === id);
+        if (!project) return;
+        setEntries(project.data, { silent: true });
+        state.activeProject = project;
+        state.dirty = false;
+        saveAutosave();
+      }
+
+      function removeProjectFlow() {
+        const id = projectPicker.value;
+        if (!id) return;
+        const index = state.projects.findIndex((item) => item.id === id);
+        if (index === -1) return;
+        if (!confirm('Gespeicherte Sequenz wirklich löschen?')) return;
+        const removed = state.projects.splice(index, 1);
+        if (state.activeProject && state.activeProject.id === id) state.activeProject = null;
+        persistProjects();
+        refreshProjectPicker();
+        if (removed.length) {
+          alert('Sequenz entfernt.');
+        }
+      }
+
+      function exportProjectFlow() {
+        const payload = exportCode.textContent;
+        if (!payload) return;
+        const url = new URL(window.location.href);
+        url.searchParams.set('customChat', payload);
+        const message = `Export erfolgreich. Du kannst folgenden Parameter nutzen:\n${url.toString()}`;
+        alert(message);
+      }
+
+      async function copyExport() {
+        const payload = exportCode.textContent;
+        if (!payload) return;
+        try {
+          await navigator.clipboard.writeText(payload);
+          buttons.copyExport.textContent = 'Kopiert!';
+          setTimeout(() => (buttons.copyExport.textContent = 'In Zwischenablage kopieren'), 1600);
+        } catch (err) {
+          console.warn('Clipboard fehlgeschlagen', err);
+        }
+      }
+
+      function importFromTextarea() {
+        const raw = document.getElementById('importData').value;
+        if (!raw.trim()) return;
+        const decoded = serializer.decode(raw.trim());
+        if (Array.isArray(decoded)) {
+          setEntries(decoded);
+          alert('Import erfolgreich.');
+        } else {
+          alert('Import fehlgeschlagen. Prüfe die Daten.');
+        }
+      }
+
+      function newProjectFlow() {
+        if (state.dirty && !confirm('Ungespeicherte Änderungen verwerfen?')) return;
+        state.activeProject = null;
+        setEntries([blankMessage()], { silent: true });
+        state.dirty = false;
+        saveAutosave();
+      }
+
+      timelineEl.addEventListener('click', (event) => {
+        const target = event.target.closest('.timeline-item');
+        if (!target) return;
+        selectEntry(target.dataset.id);
+      });
+
+      form.addEventListener('input', () => {
+        updateEntryFromForm();
+      });
+
+      buttons.addBefore.addEventListener('click', () => addEntry('before'));
+      buttons.addAfter.addEventListener('click', () => addEntry('after'));
+      buttons.duplicate.addEventListener('click', duplicateEntry);
+      buttons.delete.addEventListener('click', deleteEntry);
+      buttons.moveUp.addEventListener('click', () => moveSelected(-1));
+      buttons.moveDown.addEventListener('click', () => moveSelected(1));
+      buttons.newProject.addEventListener('click', newProjectFlow);
+      buttons.saveProject.addEventListener('click', saveProjectFlow);
+      buttons.loadProject.addEventListener('click', loadProjectFlow);
+      buttons.removeProject.addEventListener('click', removeProjectFlow);
+      buttons.exportProject.addEventListener('click', exportProjectFlow);
+      buttons.copyExport.addEventListener('click', copyExport);
+      buttons.applyImport.addEventListener('click', importFromTextarea);
+
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Delete') {
+          event.preventDefault();
+          deleteEntry();
+        }
+        if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
+          event.preventDefault();
+          saveProjectFlow();
+        }
+      });
+
+      const autosave = loadAutosave();
+      if (autosave) {
+        setEntries(autosave.data, { silent: true });
+        if (autosave.activeProject) {
+          const project = state.projects.find((item) => item.id === autosave.activeProject.id);
+          if (project) state.activeProject = project;
+        }
+      } else {
+        setEntries([blankMessage()], { silent: true });
+      }
+
+      refreshProjectPicker();
+      renderTimeline();
+      populateForm();
+    </script>
+  </body>
+</html>
