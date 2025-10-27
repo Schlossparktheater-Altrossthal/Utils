@@ -1549,7 +1549,23 @@
     document.getElementById('clear').onclick = () => handleCommand({ type: 'clear' });
     document.getElementById('bgbtn').onclick = () => handleCommand({ type: 'bg', url: document.getElementById('bgurl').value });
 
-    if (!wsUrl) runDemo();
+    // Start behavior: allow overriding with ?start=p (or ?start=keypress|manual)
+    const startParam = (qs('start') || '').toLowerCase();
+    const startOnP = startParam === 'p' || startParam === 'keypress' || startParam === 'manual';
+
+    if (!wsUrl && !startOnP) runDemo();
+
+    if (startOnP) {
+      const onFirstP = function (ev) {
+        if (!ev || !ev.key) return;
+        if (ev.key.toLowerCase() === 'p') {
+          window.removeEventListener('keydown', onFirstP);
+          // Ensure demo data loaded before starting
+          demoReady.then(() => runDemo());
+        }
+      };
+      window.addEventListener('keydown', onFirstP, { passive: true });
+    }
   </script>
 </body>
 </html>
