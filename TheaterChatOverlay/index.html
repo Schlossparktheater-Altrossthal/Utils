@@ -852,10 +852,18 @@
     function safeUrl(input) {
       if (typeof input !== 'string' || !input.trim()) return null;
       try {
-        const url = new URL(input, location.origin);
+        // Accept protocol-relative URLs (//host/path) and relative paths by using document.baseURI
+        let candidate = input.trim();
+        if (candidate.startsWith('//') && typeof location !== 'undefined' && location.protocol) {
+          candidate = location.protocol + candidate; // e.g. https://example.com/...
+        }
+        const base = (typeof document !== 'undefined' && document.baseURI) ? document.baseURI : location.href;
+        const url = new URL(candidate, base);
         if (!['http:', 'https:', 'blob:', 'data:'].includes(url.protocol)) return null;
         return url.href;
       } catch (err) {
+        // helpful debug logging for broken media paths
+        console.warn('safeUrl: invalid or unsupported URL:', input, err && err.message);
         return null;
       }
     }
