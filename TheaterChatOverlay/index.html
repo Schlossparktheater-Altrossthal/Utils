@@ -374,7 +374,8 @@
         typingAvatar.src = avatar || `https://i.pravatar.cc/64?u=${encodeURIComponent(name)}`;
 
         // Arrange typingRow children depending on role (them = avatar left, me = avatar right)
-        typingRow.className = `row ${role}`;
+        typingRow.classList.remove('me', 'them');
+        typingRow.classList.add(role === 'me' ? 'me' : 'them');
         // Ensure ordering: for 'them' -> avatar, bubble ; for 'me' -> bubble, avatar
         const bubble = typingRow.querySelector('.bubble');
         const av = typingAvatar;
