@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>bg-tile</title>
+  <script>
+    // Set initial theme class on <html> synchronously to avoid a flash
+    (function(){
+      try{
+        const params = new URLSearchParams(window.location.search);
+        const mode = (params.get('mode') || 'auto').toLowerCase();
+        const mq = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)');
+        const isLight = mode === 'light' || (mode === 'auto' && mq && mq.matches);
+        if(isLight) document.documentElement.classList.add('light');
+      }catch(e){/* ignore */}
+    })();
+  </script>
+
+  <style>
+  html,body{height:100%;margin:0}
+  :root{
+      --bg-dark: #0b141a;       /* base dark background shown under the tile */
+      --bg-light: #f5f7f8;      /* base light background for light mode */
+      --tile-filter-dark: none; /* no filter for dark (lines stay white) */
+      --tile-filter-light: invert(1) hue-rotate(180deg) saturate(0.85) brightness(1.04); /* make white lines dark */
+    }
+
+    /* We render the tile as a fixed pseudo-layer so we can apply a filter independently from the bg color */
+    html{
+      background-color: var(--bg-dark);
+      transition: background-color .18s ease;
+      -webkit-font-smoothing:antialiased;
+      -moz-osx-font-smoothing:grayscale;
+      position:relative;
+      min-height:100%;
+    }
+
+    html::before{
+      content:'';
+      position:fixed;
+      inset:0;
+      background-image: url('assets/bg-tile.png');
+      background-repeat: repeat;
+      background-position: 0 0;
+      background-size: auto;
+      will-change: transform, filter, opacity;
+      z-index:0;
+      pointer-events:none;
+      /* increased visibility: moderate opacity, mild desaturation and contrast tweak */
+      opacity: 0.18;
+      filter: grayscale(0.25) contrast(1.02) brightness(0.98) saturate(0.9);
+    }
+    /* Light mode: stronger but still soft lines on light bg */
+    html.light{
+      background-color: var(--bg-light);
+    }
+    html.light::before{
+      opacity: 0.12;
+      /* invert to make lines darker, keep mild desat/contrast so it's not harsh */
+      filter: invert(1) hue-rotate(180deg) grayscale(0.2) contrast(1.04) brightness(1) saturate(0.85);
+    }
+
+    /* ensure no visible content stands above the pattern */
+    :root{color-scheme: dark light}
+    @media (prefers-reduced-motion: reduce){*{transition:none !important}}
+  </style>
+</head>
+<body>
+  <script>
+    // Read URL param ?mode=dark|light|auto (default: auto -> follow system, fallback dark)
+    (function(){
+      const params = new URLSearchParams(location.search);
+      const mode = (params.get('mode') || 'auto').toLowerCase();
+      const mq = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)');
+
+      const apply = (m) => {
+        if (m === 'light') document.body.classList.add('light');
+        else document.body.classList.remove('light');
+      };
+
+      if (mode === 'light' || mode === 'dark') {
+        apply(mode);
+      } else {
+        // auto
+        apply(mq && mq.matches ? 'light' : 'dark');
+        if (mq && mq.addEventListener) mq.addEventListener('change', e => apply(e.matches ? 'light' : 'dark'));
+        else if (mq && mq.addListener) mq.addListener(e => apply(e.matches ? 'light' : 'dark'));
+      }
+    })();
+  </script>
+</body>
+</html>
