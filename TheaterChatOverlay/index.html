@@ -527,6 +527,7 @@
 
     .composer-field {
       flex: 1 1 auto;
+      min-width: 0;
       position: relative;
       display: flex;
       align-items: center;
@@ -544,6 +545,7 @@
       flex: 1 1 auto;
       display: block;
       width: 100%;
+      min-width: 0;
       font-size: var(--font-size-base);
       color: var(--text);
       pointer-events: none;
@@ -623,6 +625,7 @@
       color: var(--muted);
       opacity: 0.85;
       pointer-events: none;
+      flex-shrink: 0;
     }
 
     .composer-btn svg {
