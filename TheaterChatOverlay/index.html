@@ -2168,14 +2168,20 @@
     function setBackground(url) {
       const safe = safeUrl(url);
       if (!safe) {
-        bgImg.removeAttribute('src');
+        bgVid.pause();
         bgVid.removeAttribute('src');
+        bgVid.load();
+        bgImg.removeAttribute('src');
         bgImg.style.display = 'none';
         bgVid.style.display = 'none';
         return;
       }
       if (/\.(mp4|webm|mov)(\?|$)/i.test(safe)) {
+        bgVid.pause();
+        bgVid.removeAttribute('src');
+        bgVid.load();
         bgVid.src = safe;
+        bgVid.load();
         bgVid.style.display = 'block';
         bgImg.style.display = 'none';
         if (!prefersReducedMotion) {
@@ -2183,7 +2189,14 @@
         } else {
           bgVid.style.opacity = '1';
         }
+        const playPromise = bgVid.play?.();
+        if (playPromise && typeof playPromise.catch === 'function') {
+          playPromise.catch(() => {});
+        }
       } else {
+        bgVid.pause();
+        bgVid.removeAttribute('src');
+        bgVid.load();
         bgImg.src = safe;
         bgImg.style.display = 'block';
         bgVid.style.display = 'none';
