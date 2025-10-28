@@ -470,6 +470,22 @@
       padding: 4px 0;
     }
 
+    #typingRow.animating-in {
+      animation: composer-slide-in 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    }
+
+    #typingRow.animating-out {
+      animation: composer-slide-out 0.42s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    }
+
+    #typingRow.animating-in .bubble {
+      animation: composer-inner-in 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    }
+
+    #typingRow.animating-out .bubble {
+      animation: composer-inner-out 0.42s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    }
+
     .dot {
       width: 8px;
       height: 8px;
@@ -743,9 +759,12 @@
 
     @media (prefers-reduced-motion: reduce) {
       .composer,
-      .composer-inner {
+      .composer-inner,
+      #typingRow,
+      #typingRow .bubble {
         transition: none !important;
         transform: none !important;
+        animation: none !important;
       }
     }
 
@@ -1216,6 +1235,23 @@
       exit: 'composer-slide-out',
     };
 
+    if (typingRow) {
+      typingRow.addEventListener('animationend', (event) => {
+        if (event.animationName === composerAnimationNames.enter) {
+          if (typingRow.classList.contains('animating-in')) {
+            typingRow.classList.remove('animating-in');
+          }
+          return;
+        }
+        if (event.animationName === composerAnimationNames.exit) {
+          if (typingRow.classList.contains('animating-out')) {
+            typingRow.classList.remove('animating-out');
+            typingRow.classList.add('hidden');
+          }
+        }
+      });
+    }
+
     if (composer) {
       composer.addEventListener('animationend', (event) => {
         if (event.animationName === composerAnimationNames.enter) {
@@ -1417,6 +1453,32 @@
       // Force a reflow before starting the exit animation so it plays every time.
       void composer.offsetWidth;
       composer.classList.add('animating-out');
+    }
+
+    function playTypingRowEnterAnimation() {
+      if (!typingRow) return;
+      typingRow.classList.remove('hidden', 'animating-out');
+      if (prefersReducedMotion) {
+        typingRow.classList.remove('animating-in');
+        return;
+      }
+      // Force a reflow so the animation restarts reliably.
+      void typingRow.offsetWidth;
+      typingRow.classList.add('animating-in');
+    }
+
+    function playTypingRowExitAnimation() {
+      if (!typingRow) return;
+      if (prefersReducedMotion) {
+        typingRow.classList.remove('animating-in', 'animating-out');
+        typingRow.classList.add('hidden');
+        return;
+      }
+      if (typingRow.classList.contains('hidden')) return;
+      typingRow.classList.remove('animating-in');
+      // Force a reflow before starting the exit animation so it plays every time.
+      void typingRow.offsetWidth;
+      typingRow.classList.add('animating-out');
     }
 
     function showComposerShell() {
@@ -1828,7 +1890,7 @@
     function setTyping(on = true, name = '', avatar = '', role = 'them') {
       if (!on) {
         hideComposerShell();
-        typingRow.classList.add('hidden');
+        playTypingRowExitAnimation();
         if (typingTl) {
           typingTl.kill();
           typingTl = null;
@@ -1843,7 +1905,7 @@
         hideComposerShell();
         showComposerShell();
         setComposerTextValue('');
-        typingRow.classList.add('hidden');
+        playTypingRowExitAnimation();
         if (typingTl) {
           typingTl.kill();
           typingTl = null;
@@ -1853,7 +1915,7 @@
       }
 
       hideComposerShell();
-      typingRow.classList.remove('hidden');
+      playTypingRowEnterAnimation();
       typingAvatar.src = safeUrl(avatar) || `https://i.pravatar.cc/64?u=${encodeURIComponent(name || 'avatar')}`;
       typingRow.classList.remove('me', 'them');
       typingRow.classList.add('them');
