@@ -497,8 +497,6 @@
       overflow: hidden;
       transition:
         grid-template-rows 0.45s cubic-bezier(0.4, 0, 0.2, 1),
-        opacity 0.35s ease,
-        transform 0.35s ease,
         padding-block-start 0.45s cubic-bezier(0.4, 0, 0.2, 1),
         padding-block-end 0.45s cubic-bezier(0.4, 0, 0.2, 1);
     }
@@ -523,6 +521,27 @@
     .composer.hidden .composer-inner {
       opacity: 0;
       transform: translateY(12px);
+    }
+
+    .composer.animating-in,
+    .composer.animating-out {
+      grid-template-rows: 1fr;
+    }
+
+    .composer.animating-in {
+      animation: composer-slide-in 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    }
+
+    .composer.animating-out {
+      animation: composer-slide-out 0.42s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    }
+
+    .composer.animating-in .composer-inner {
+      animation: composer-inner-in 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    }
+
+    .composer.animating-out .composer-inner {
+      animation: composer-inner-out 0.42s cubic-bezier(0.4, 0, 0.2, 1) forwards;
     }
 
     .composer-field {
@@ -590,8 +609,7 @@
       margin-inline-start: 2px;
     }
 
-    .composer.is-typing .composer-cursor,
-    .composer.has-text .composer-cursor {
+    .composer:not(.hidden) .composer-cursor {
       display: inline-block;
     }
 
@@ -603,6 +621,50 @@
       55%,
       100% {
         opacity: 0;
+      }
+    }
+
+    @keyframes composer-slide-in {
+      0% {
+        opacity: 0;
+        transform: translateY(40px);
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes composer-slide-out {
+      0% {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      100% {
+        opacity: 0;
+        transform: translateY(36px);
+      }
+    }
+
+    @keyframes composer-inner-in {
+      0% {
+        opacity: 0;
+        transform: translateY(18px);
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes composer-inner-out {
+      0% {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      100% {
+        opacity: 0;
+        transform: translateY(12px);
       }
     }
 
@@ -1149,6 +1211,27 @@
     const composer = document.getElementById('composer');
     const composerText = document.getElementById('composerText');
     const composerPlaceholder = document.getElementById('composerPlaceholder');
+    const composerAnimationNames = {
+      enter: 'composer-slide-in',
+      exit: 'composer-slide-out',
+    };
+
+    if (composer) {
+      composer.addEventListener('animationend', (event) => {
+        if (event.animationName === composerAnimationNames.enter) {
+          if (composer.classList.contains('animating-in')) {
+            composer.classList.remove('animating-in');
+          }
+          return;
+        }
+        if (event.animationName === composerAnimationNames.exit) {
+          if (composer.classList.contains('animating-out')) {
+            composer.classList.remove('animating-out');
+            composer.classList.add('hidden');
+          }
+        }
+      });
+    }
     const snd = document.getElementById('snd');
     const FEATURES = { readTicks: false, reactions: false };
     const panel = document.getElementById('panel');
@@ -1304,9 +1387,42 @@
       }
     }
 
+    function playComposerEnterAnimation() {
+      if (!composer) return;
+      composer.classList.remove('animating-out');
+      if (prefersReducedMotion) {
+        composer.classList.remove('hidden');
+        composer.classList.remove('animating-in');
+        return;
+      }
+
+      const alreadyVisible = !composer.classList.contains('hidden');
+      composer.classList.remove('hidden');
+      if (alreadyVisible && composer.classList.contains('animating-in')) return;
+      // Force a reflow so the animation restarts reliably.
+      void composer.offsetWidth;
+      composer.classList.add('animating-in');
+    }
+
+    function playComposerExitAnimation() {
+      if (!composer) return;
+      if (prefersReducedMotion) {
+        composer.classList.remove('animating-in', 'animating-out');
+        composer.classList.add('hidden');
+        return;
+      }
+
+      if (composer.classList.contains('hidden')) return;
+      composer.classList.remove('animating-in');
+      // Force a reflow before starting the exit animation so it plays every time.
+      void composer.offsetWidth;
+      composer.classList.add('animating-out');
+    }
+
     function showComposerShell() {
       if (!composer) return;
-      composer.classList.remove('hidden', 'is-ready', 'is-sending');
+      playComposerEnterAnimation();
+      composer.classList.remove('is-ready', 'is-sending');
       composer.classList.add('is-typing');
     }
 
@@ -1315,7 +1431,7 @@
       clearComposerTimers();
       setComposerTextValue('');
       composer.classList.remove('is-typing', 'is-ready', 'is-sending');
-      composer.classList.add('hidden');
+      playComposerExitAnimation();
     }
 
     function typeComposerSequence(text, duration, onComplete) {
