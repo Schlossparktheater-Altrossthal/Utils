@@ -363,7 +363,7 @@
       flex-direction: column;
       gap: 0;
       max-width: min(
-        calc(100% - (var(--avatar-size) + var(--row-gap) * 1.5) - var(--center-gap)),
+        calc(100% - (var(--avatar-size) + var(--row-gap) * 1.5)),
         var(--bubble-max)
       );
       min-width: 0;
@@ -383,11 +383,15 @@
     .row.me .bubbles {
       margin-right: 4px;
       align-items: flex-end;
+      max-width: min(
+        calc(100% - (var(--avatar-size) + var(--row-gap) * 1.5) - var(--center-gap)),
+        var(--bubble-max)
+      );
     }
 
     .bubble {
       max-width: min(
-        calc(100% - (var(--avatar-size) + var(--row-gap) * 1.5) - var(--center-gap)),
+        calc(100% - (var(--avatar-size) + var(--row-gap) * 1.5)),
         var(--bubble-max)
       );
       box-sizing: border-box;
@@ -419,6 +423,10 @@
       --bubble-fill: var(--bubble-outgoing-fill);
       --bubble-border: var(--bubble-outgoing-border);
       --bubble-tail-color: var(--bubble-me);
+      max-width: min(
+        calc(100% - (var(--avatar-size) + var(--row-gap) * 1.5) - var(--center-gap)),
+        var(--bubble-max)
+      );
     }
 
     .bubble .text {
