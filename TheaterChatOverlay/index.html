@@ -1714,7 +1714,14 @@
 
       const dots = typingRow.querySelectorAll('.dot');
       gsap.set(dots, { opacity: 0.3, scale: 1 });
-      if (typingTl) typingTl.kill();
+      if (typingTl) {
+        typingTl.kill();
+        typingTl = null;
+      }
+      if (prefersReducedMotion) {
+        gsap.set(dots, { opacity: 0.6, scale: 1 });
+        return;
+      }
       typingTl = gsap.timeline({ repeat: -1, defaults: { ease: 'power2.inOut', duration: 0.4 } });
       dots.forEach((dot, index) => {
         typingTl.to(dot, { scale: 1.2, opacity: 1 }, index === 0 ? 0 : '-=0.2');
