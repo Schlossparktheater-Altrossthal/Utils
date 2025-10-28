@@ -520,9 +520,8 @@
     .composer-textwrap {
       position: relative;
       flex: 1 1 auto;
-      display: flex;
-      align-items: baseline;
-      gap: 0.25em;
+      display: block;
+      width: 100%;
       font-size: var(--font-size-base);
       color: var(--text);
       pointer-events: none;
@@ -548,14 +547,17 @@
     }
 
     .composer-text {
-      flex: 1 1 auto;
+      display: inline-block;
+      max-width: 100%;
       white-space: pre-wrap;
       word-break: break-word;
       min-height: 1.35em;
+      vertical-align: bottom;
     }
 
     .composer-cursor {
       display: none;
+      vertical-align: bottom;
       width: 2px;
       background: var(--composer-cursor);
       border-radius: 1px;
