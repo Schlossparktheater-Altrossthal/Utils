@@ -312,6 +312,11 @@
       -ms-overflow-style: none;
     }
 
+    #typingRow {
+      padding-inline: calc(var(--content-pad) + env(safe-area-inset-left))
+        calc(var(--content-pad) + env(safe-area-inset-right));
+    }
+
     .scroll::-webkit-scrollbar {
       display: none;
     }
