@@ -124,6 +124,18 @@
       box-sizing: border-box;
     }
 
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
     body {
       margin: 0;
       font-family: system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, Cantarell, "Noto Sans", Arial, sans-serif;
@@ -1150,6 +1162,7 @@
         <div id="typingRow" class="row them hidden bounded" aria-live="polite">
           <img id="typingAvatar" class="avatar" src="https://i.pravatar.cc/64?img=32" alt="avatar" />
           <div class="bubble">
+            <span id="typingStatus" class="sr-only"></span>
             <span class="typing" aria-hidden="true">
               <span class="dot"></span>
               <span class="dot"></span>
@@ -1227,6 +1240,7 @@
     const scrollEl = document.getElementById('scroll');
     const typingRow = document.getElementById('typingRow');
     const typingAvatar = document.getElementById('typingAvatar');
+    const typingStatus = document.getElementById('typingStatus');
     const composer = document.getElementById('composer');
     const composerText = document.getElementById('composerText');
     const composerPlaceholder = document.getElementById('composerPlaceholder');
@@ -1897,6 +1911,9 @@
         }
         const dots = typingRow.querySelectorAll('.dot');
         gsap.set(dots, { opacity: 0.3, scale: 1 });
+        if (typingStatus) {
+          typingStatus.textContent = '';
+        }
         maybeAutoScroll(360);
         return;
       }
@@ -1910,6 +1927,9 @@
           typingTl.kill();
           typingTl = null;
         }
+        if (typingStatus) {
+          typingStatus.textContent = '';
+        }
         maybeAutoScroll(360);
         return;
       }
@@ -1919,6 +1939,12 @@
       typingAvatar.src = safeUrl(avatar) || `https://i.pravatar.cc/64?u=${encodeURIComponent(name || 'avatar')}`;
       typingRow.classList.remove('me', 'them');
       typingRow.classList.add('them');
+
+      if (typingStatus) {
+        const trimmedName = typeof name === 'string' ? name.trim() : '';
+        const statusText = trimmedName.length > 0 ? `${trimmedName} tippt …` : 'Jemand tippt …';
+        typingStatus.textContent = statusText;
+      }
 
       const bubble = typingRow.querySelector('.bubble');
       if (typingRow.firstElementChild !== typingAvatar) {
