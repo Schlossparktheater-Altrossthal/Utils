@@ -834,6 +834,57 @@
       transition: background 0.35s ease, color 0.2s ease, box-shadow 0.35s ease;
     }
 
+    .panel.readonly {
+      opacity: 0.92;
+    }
+
+    .panel.readonly [disabled] {
+      cursor: not-allowed;
+      opacity: 0.55;
+    }
+
+    .panel .room-info {
+      display: none;
+      flex-direction: column;
+      gap: 8px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(10, 18, 23, 0.68);
+      font-size: var(--font-size-small);
+      line-height: 1.4;
+    }
+
+    .panel .room-info.active {
+      display: flex;
+    }
+
+    .panel .room-info code {
+      display: inline-block;
+      font-family: 'Fira Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
+        monospace;
+      background: rgba(0, 0, 0, 0.18);
+      padding: 2px 6px;
+      border-radius: 6px;
+      font-size: 0.92em;
+      word-break: break-all;
+    }
+
+    .panel .room-info button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      font-size: 0.9em;
+      padding: 6px 8px;
+    }
+
+    .panel .room-info .room-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
     .panel h3 {
       margin: 0 0 4px;
       font-size: 14px;
@@ -861,6 +912,17 @@
       transition: background 0.2s ease, color 0.2s ease;
     }
 
+    .panel button.secondary {
+      background: rgba(255, 255, 255, 0.06);
+      color: inherit;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow: none;
+    }
+
+    .panel button.secondary:hover {
+      background: rgba(255, 255, 255, 0.18);
+    }
+
     .panel button:hover {
       background: #1f3f52;
     }
@@ -869,6 +931,24 @@
       background: rgba(255, 255, 255, 0.88);
       color: #1f2c34;
       box-shadow: 0 12px 26px rgba(15, 32, 42, 0.14);
+    }
+
+    body.theme-light .panel .room-info {
+      background: rgba(248, 250, 252, 0.86);
+      border-color: rgba(31, 44, 52, 0.08);
+    }
+
+    body.theme-light .panel .room-info code {
+      background: rgba(31, 44, 52, 0.08);
+    }
+
+    body.theme-light .panel button.secondary {
+      background: rgba(31, 44, 52, 0.08);
+      border-color: rgba(31, 44, 52, 0.12);
+    }
+
+    body.theme-light .panel button.secondary:hover {
+      background: rgba(31, 44, 52, 0.16);
     }
 
     body.theme-light .panel input,
@@ -1214,6 +1294,14 @@
 
     <div class="panel hidden" id="panel">
       <h3>Live Eingabe (Taste C ein/aus)</h3>
+      <div id="roomInfo" class="room-info">
+        <div>Aktiver Raum: <code id="roomCode"></code></div>
+        <div class="room-links">
+          <button id="copyOverlayLink" class="secondary">Overlay-Link kopieren</button>
+          <button id="copyDirectorLink" class="secondary">Director-Link kopieren</button>
+          <button id="copyGuestLink" class="secondary">Gast-Link kopieren</button>
+        </div>
+      </div>
       <div class="row2">
         <select id="role">
           <option value="them">Publikum</option>
@@ -1250,6 +1338,14 @@
   <script src="./offline-chat.js"></script>
   <script>
     const qs = (key, fallback = null) => new URLSearchParams(location.search).get(key) ?? fallback;
+    const roomId = (qs('room') || '').trim();
+    const modeParam = (qs('mode') || '').toLowerCase();
+    const isDirector = modeParam === 'director';
+    const isParticipant = isDirector || modeParam === 'participant' || modeParam === 'guest';
+    const isOverlayOnly = !!roomId && !isParticipant;
+    const displayNameParam = qs('displayName') || qs('nickname') || '';
+    const localDisplayName = displayNameParam || (isDirector ? 'Director' : isParticipant ? 'Gast' : 'Overlay');
+
     const scrollEl = document.getElementById('scroll');
     const typingRow = document.getElementById('typingRow');
     const typingAvatar = document.getElementById('typingAvatar');
@@ -1298,6 +1394,20 @@
     const snd = document.getElementById('snd');
     const FEATURES = { readTicks: false, reactions: false };
     const panel = document.getElementById('panel');
+    const roomPanel = document.getElementById('roomInfo');
+    const roomCodeEl = document.getElementById('roomCode');
+    const copyOverlayBtn = document.getElementById('copyOverlayLink');
+    const copyDirectorBtn = document.getElementById('copyDirectorLink');
+    const copyGuestBtn = document.getElementById('copyGuestLink');
+    const roleSelect = document.getElementById('role');
+
+    if (roleSelect) {
+      if (isDirector) roleSelect.value = 'me';
+      else if (isParticipant) roleSelect.value = 'them';
+    }
+
+    const nameInput = document.getElementById('name');
+    if (nameInput && localDisplayName) nameInput.value = localDisplayName;
     const bgImg = document.getElementById('bgImage');
     const bgVid = document.getElementById('bgVideo');
 
@@ -1307,6 +1417,111 @@
       click: 'https://assets.mixkit.co/active_storage/sfx/1007/1007-preview.mp3',
       chime: 'https://assets.mixkit.co/active_storage/sfx/2561/2561-preview.mp3'
     };
+
+    let remoteParticipants = [];
+    let rtcModule = null;
+    let roomClient = null;
+    let roomLinksBuilder = null;
+    const pendingCommands = [];
+
+    const persistedRoomParams = (() => {
+      const map = {};
+      ['signal', 'ice', 'stun', 'turn'].forEach((key) => {
+        const value = qs(key);
+        if (typeof value === 'string' && value.trim()) {
+          map[key] = value.trim();
+        }
+      });
+      return map;
+    })();
+
+    function tryParseJson(text) {
+      if (!text) return null;
+      try {
+        return JSON.parse(text);
+      } catch (err) {
+        return null;
+      }
+    }
+
+    function decodeBase64Json(text) {
+      if (!text) return null;
+      try {
+        let base = text.replace(/\s+/g, '');
+        if (!/^[A-Za-z0-9+/=_-]+$/.test(base)) return null;
+        base = base.replace(/-/g, '+').replace(/_/g, '/');
+        while (base.length % 4) base += '=';
+        const decoded = atob(base);
+        return JSON.parse(decoded);
+      } catch (err) {
+        return null;
+      }
+    }
+
+    function normalizeIceEntry(entry) {
+      if (!entry) return null;
+      const urls = entry.urls ?? entry.url ?? entry.urlList;
+      const list = Array.isArray(urls) ? urls : urls ? [urls] : [];
+      const cleaned = list
+        .map((url) => (typeof url === 'string' ? url.trim() : ''))
+        .filter(Boolean);
+      if (cleaned.length === 0) return null;
+      const clone = { ...entry, urls: cleaned };
+      delete clone.url;
+      delete clone.urlList;
+      return clone;
+    }
+
+    function parseIceOverrides() {
+      const extras = [];
+      const rawIce = qs('ice');
+      if (rawIce) {
+        const parsed = tryParseJson(rawIce) ?? decodeBase64Json(rawIce);
+        if (Array.isArray(parsed)) {
+          for (const item of parsed) {
+            const normalized = normalizeIceEntry(item);
+            if (normalized) extras.push(normalized);
+          }
+        } else if (parsed && typeof parsed === 'object') {
+          const normalized = normalizeIceEntry(parsed);
+          if (normalized) extras.push(normalized);
+        } else {
+          const normalized = normalizeIceEntry({ urls: rawIce.split(',') });
+          if (normalized) extras.push(normalized);
+        }
+      }
+
+      const addShort = (value) => {
+        if (!value) return;
+        const normalized = normalizeIceEntry({ urls: value.split(',') });
+        if (normalized) extras.push(normalized);
+      };
+
+      addShort(qs('stun'));
+      addShort(qs('turn'));
+
+      if (extras.length === 0) return null;
+
+      const seen = new Set();
+      const deduped = [];
+      for (const entry of extras) {
+        const unique = entry.urls.filter((url) => {
+          if (seen.has(url)) return false;
+          seen.add(url);
+          return true;
+        });
+        if (unique.length === 0) continue;
+        deduped.push({ ...entry, urls: unique });
+      }
+
+      const fallbackStuns = ['stun:stun.l.google.com:19302', 'stun:stun1.l.google.com:19302'];
+      const missing = fallbackStuns.filter((url) => !seen.has(url));
+      if (missing.length > 0) {
+        deduped.push({ urls: missing });
+      }
+
+      return deduped.length > 0 ? deduped : null;
+    }
 
     const reduceMotionQuery = matchMedia('(prefers-reduced-motion: reduce)');
     let prefersReducedMotion = reduceMotionQuery.matches;
@@ -1646,6 +1861,7 @@
       const themeClass = mode === 'light' ? 'theme-light' : 'theme-dark';
       document.body.classList.remove('theme-light', 'theme-dark');
       document.body.classList.add(themeClass);
+      if (isDirector) pushRoomMetadata();
     }
 
     if (themeParam === 'auto' && colorSchemeQuery) {
@@ -1676,14 +1892,79 @@
 
     document.addEventListener('keydown', (event) => {
       if (event.key && event.key.toLowerCase() === 'c') {
-        panel.classList.toggle('hidden');
+        if (!panel) return;
+        if (!roomId || isParticipant) {
+          panel.classList.toggle('hidden');
+        }
       }
     });
 
-    const panelParam = (qs('panel') || '').toLowerCase();
-    if (['1', 'true', 'on', 'yes'].includes(panelParam)) {
-      panel.classList.remove('hidden');
+    if (panel) {
+      if (isOverlayOnly) setPanelReadOnly(true);
+      if (isParticipant && panel.classList.contains('hidden')) panel.classList.remove('hidden');
+      const panelParam = (qs('panel') || '').toLowerCase();
+      if (['1', 'true', 'on', 'yes'].includes(panelParam)) {
+        panel.classList.remove('hidden');
+      }
     }
+
+    updateRoomPanelLinks();
+
+    const baseMode = isDirector ? 'director' : isParticipant ? 'participant' : 'overlay';
+
+    (async () => {
+      if (!roomId) return;
+      try {
+        rtcModule = await import('./webrtc/mesh-client.js');
+      } catch (err) {
+        console.warn('WebRTC-Modul konnte nicht geladen werden. Fallback auf lokale Steuerung/WebSocket.', err);
+        return;
+      }
+
+      const { createMeshClient, buildRoomLink, createLocalId } = rtcModule;
+      const builderExtras = { ...persistedRoomParams };
+      updateRoomPanelLinks((room, mode, base) => buildRoomLink(room, mode, base, builderExtras));
+
+      const sourceId = createLocalId();
+      const signalParam = persistedRoomParams.signal || null;
+      const iceOverrides = parseIceOverrides();
+
+      try {
+        roomClient = await createMeshClient({
+          roomId,
+          role: baseMode,
+          clientId: sourceId,
+          displayName: localDisplayName,
+          signalUrl: signalParam || undefined,
+          iceServers: iceOverrides,
+          onCommand: (payload) => {
+            if (!payload) return;
+            handleCommand(payload);
+          },
+          onPresence: (list) => updateRemoteParticipants(list)
+        });
+
+        if (isOverlayOnly && panel) {
+          panel.classList.add('hidden');
+          setPanelReadOnly(true);
+        }
+
+        if (isDirector) pushRoomMetadata();
+
+        if (pendingCommands.length > 0) {
+          const queue = pendingCommands.splice(0, pendingCommands.length);
+          for (const cmd of queue) {
+            try {
+              await roomClient.publish(cmd);
+            } catch (err) {
+              console.warn('Nachträgliches Senden in Raum fehlgeschlagen', err);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Konnte WebRTC-Raum nicht initialisieren. Prüfe Signalisierung oder ICE.', err);
+      }
+    })();
 
     let demo = [];
     let demoState = null;
@@ -1750,17 +2031,133 @@
     }
 
     function populateParticipants() {
+      const el = document.getElementById('participants');
+      if (!el) return;
+      const max = 5;
+
+      const activeRemote = Array.isArray(remoteParticipants)
+        ? remoteParticipants.filter((name) => typeof name === 'string' && name.trim())
+        : [];
+
+      if (activeRemote.length > 0) {
+        const unique = Array.from(new Set(activeRemote.map((name) => name.trim())));
+        if (unique.length === 0) {
+          el.textContent = 'Anwesend: —';
+          return;
+        }
+        const list = unique.length > max ? unique.slice(0, max).join(', ') + ', …' : unique.join(', ');
+        el.textContent = `Anwesend (${unique.length}): ${list}`;
+        return;
+      }
+
       const names = [];
       for (const it of demo) {
         const m = it.msg || it;
         if (m && m.name && !names.includes(m.name)) names.push(m.name);
       }
-      const el = document.getElementById('participants');
-      if (!el) return;
-      const max = 5;
+
       if (names.length === 0) el.textContent = 'Teilnehmer: —';
       else if (names.length > max) el.textContent = 'Teilnehmer: ' + names.slice(0, max).join(', ') + ', …';
       else el.textContent = 'Teilnehmer: ' + names.join(', ');
+
+      if (isDirector) pushRoomMetadata();
+    }
+
+    function updateRemoteParticipants(list) {
+      remoteParticipants = Array.isArray(list)
+        ? list
+            .map((entry) => {
+              if (!entry) return null;
+              if (typeof entry === 'string') return entry;
+              if (entry.displayName && typeof entry.displayName === 'string') return entry.displayName;
+              if (entry.name && typeof entry.name === 'string') return entry.name;
+              if (entry.role && typeof entry.role === 'string') return entry.role;
+              return null;
+            })
+            .filter((value) => typeof value === 'string' && value.trim())
+        : [];
+      populateParticipants();
+      if (isDirector) pushRoomMetadata();
+    }
+
+    function setPanelReadOnly(disabled) {
+      if (!panel) return;
+      panel.classList.toggle('readonly', !!disabled);
+      const inputs = panel.querySelectorAll('input, textarea, select, button');
+      inputs.forEach((el) => {
+        if (!el) return;
+        if (el.classList && el.classList.contains('secondary')) return;
+        if (el.id && el.id.startsWith('copy')) return;
+        if (disabled) el.setAttribute('disabled', 'disabled');
+        else el.removeAttribute('disabled');
+      });
+    }
+
+    function collectRoomMetadata() {
+      const titleEl = document.querySelector('.topbar .title');
+      const participantsEl = document.getElementById('participants');
+      const theme = document.body.classList.contains('theme-light') ? 'light' : 'dark';
+      return {
+        title: titleEl ? titleEl.textContent : null,
+        participants: participantsEl ? participantsEl.textContent : null,
+        theme,
+        room: roomId || null
+      };
+    }
+
+    function pushRoomMetadata() {
+      if (!roomClient || typeof roomClient.updateMetadata !== 'function') return;
+      if (!isDirector) return;
+      const metadata = collectRoomMetadata();
+      roomClient.updateMetadata(metadata).catch((err) => console.debug('Metadaten konnten nicht aktualisiert werden', err));
+    }
+
+    function buildFallbackRoomLink(room, mode) {
+      const url = new URL(location.href);
+      url.searchParams.set('room', room);
+      url.searchParams.set('mode', mode);
+      for (const [key, value] of Object.entries(persistedRoomParams)) {
+        url.searchParams.set(key, value);
+      }
+      return url.toString();
+    }
+
+    function updateRoomPanelLinks(builder) {
+      if (!roomPanel) return;
+      if (!roomId) {
+        roomPanel.classList.remove('active');
+        return;
+      }
+
+      roomPanel.classList.add('active');
+      if (roomCodeEl) roomCodeEl.textContent = roomId;
+      if (builder) roomLinksBuilder = builder;
+
+      const makeLink = roomLinksBuilder || builder || buildFallbackRoomLink;
+      const origin = location.origin && location.origin !== 'null' ? location.origin : '';
+      const base = `${origin}${location.pathname}` || location.href.split('#')[0];
+      const overlayLink = makeLink(roomId, 'overlay', base);
+      const directorLink = makeLink(roomId, 'director', base);
+      const guestLink = makeLink(roomId, 'participant', base);
+
+      const attachCopyHandler = (button, value) => {
+        if (!button) return;
+        button.onclick = async () => {
+          try {
+            await navigator.clipboard.writeText(value);
+            button.textContent = 'Link kopiert!';
+            setTimeout(() => (button.textContent = button.dataset.label || 'Link kopieren'), 1800);
+          } catch (err) {
+            console.warn('Clipboard fehlgeschlagen, fallback via Prompt.', err);
+            window.prompt('Link kopieren:', value);
+          }
+        };
+        button.dataset.label = button.dataset.label || button.textContent;
+      };
+
+      attachCopyHandler(copyOverlayBtn, overlayLink);
+      attachCopyHandler(copyDirectorBtn, directorLink);
+      attachCopyHandler(copyGuestBtn, guestLink);
     }
 
     (function handleHeaderParam() {
@@ -2348,48 +2745,81 @@
       step();
     }
 
-    document.getElementById('send').onclick = () => {
-      const payload = {
-        type: 'msg',
-        role: document.getElementById('role').value,
-        name: document.getElementById('name').value || 'Person',
-        avatar: document.getElementById('avatar').value,
-        text: document.getElementById('text').value,
-        media: document.getElementById('media').value || null,
-        quote:
-          document.getElementById('quoteText') && document.getElementById('quoteText').value
-            ? {
-                name: (document.getElementById('quoteAuthor') && document.getElementById('quoteAuthor').value) || 'Zitat',
-                text: document.getElementById('quoteText').value
-              }
-            : null
-      };
-
-      if (payload.role === 'me') {
-        const dur = typingDurationFor(payload.text);
-        setTyping(true, payload.name, payload.avatar, 'me');
-        addMessage({ ...payload, revealDuration: dur, onComplete: () => setTyping(false, '', '', 'me') });
+    function previewCommand(cmd) {
+      if (!cmd || typeof cmd !== 'object') return;
+      if (cmd.type === 'msg') {
+        const payload = { ...cmd };
+        if (payload.role === 'me') {
+          const dur = typingDurationFor(payload.text);
+          setTyping(true, payload.name, payload.avatar, 'me');
+          addMessage({ ...payload, revealDuration: dur, onComplete: () => setTyping(false, '', '', 'me') });
+        } else {
+          addMessage(payload);
+        }
       } else {
-        addMessage(payload);
+        handleCommand(cmd);
       }
+    }
 
-      if (ws && ws.readyState === WebSocket.OPEN) {
+    function emitCommand(cmd, { preview = true } = {}) {
+      if (!cmd || typeof cmd !== 'object') return;
+      const payload = { ...cmd };
+      if (preview) previewCommand(payload);
+
+      if (roomClient) {
+        roomClient.publish(payload).catch((err) => console.warn('Senden in Raum fehlgeschlagen', err));
+      } else if (roomId && !wsUrl) {
+        pendingCommands.push(payload);
+      } else if (ws && ws.readyState === WebSocket.OPEN) {
         try {
           ws.send(JSON.stringify(payload));
         } catch (err) {
           console.warn('Senden über WS fehlgeschlagen', err);
         }
+      } else if (!preview) {
+        handleCommand(payload);
       }
+    }
 
-      document.getElementById('text').value = '';
-      document.getElementById('media').value = '';
-      if (document.getElementById('quoteAuthor')) document.getElementById('quoteAuthor').value = '';
-      if (document.getElementById('quoteText')) document.getElementById('quoteText').value = '';
-    };
+    const sendBtn = document.getElementById('send');
+    if (sendBtn) {
+      sendBtn.onclick = () => {
+        const payload = {
+          type: 'msg',
+          role: document.getElementById('role').value,
+          name: document.getElementById('name').value || 'Person',
+          avatar: document.getElementById('avatar').value,
+          text: document.getElementById('text').value,
+          media: document.getElementById('media').value || null,
+          quote:
+            document.getElementById('quoteText') && document.getElementById('quoteText').value
+              ? {
+                  name:
+                    (document.getElementById('quoteAuthor') && document.getElementById('quoteAuthor').value) || 'Zitat',
+                  text: document.getElementById('quoteText').value
+                }
+              : null
+        };
 
-    document.getElementById('demo').onclick = () => handleCommand({ type: 'demo' });
-    document.getElementById('clear').onclick = () => handleCommand({ type: 'clear' });
-    document.getElementById('bgbtn').onclick = () => handleCommand({ type: 'bg', url: document.getElementById('bgurl').value });
+        emitCommand(payload, { preview: !roomId || isParticipant });
+
+        document.getElementById('text').value = '';
+        document.getElementById('media').value = '';
+        if (document.getElementById('quoteAuthor')) document.getElementById('quoteAuthor').value = '';
+        if (document.getElementById('quoteText')) document.getElementById('quoteText').value = '';
+      };
+    }
+
+    const demoBtn = document.getElementById('demo');
+    if (demoBtn) demoBtn.onclick = () => emitCommand({ type: 'demo' }, { preview: true });
+
+    const clearBtn = document.getElementById('clear');
+    if (clearBtn) clearBtn.onclick = () => emitCommand({ type: 'clear' }, { preview: true });
+
+    const bgBtn = document.getElementById('bgbtn');
+    if (bgBtn)
+      bgBtn.onclick = () =>
+        emitCommand({ type: 'bg', url: document.getElementById('bgurl').value }, { preview: true });
 
     if (!wsUrl) runDemo();
   </script>
