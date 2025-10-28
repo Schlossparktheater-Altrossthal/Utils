@@ -1603,8 +1603,14 @@
       smoothScrollAnim = requestAnimationFrame(animate);
     }
 
-    function isUserNearBottom(threshold = 96) {
+    function isUserNearBottom() {
       try {
+        const baseMargin = 24;
+        const composerHeight =
+          composer && !composer.classList.contains('hidden') ? composer.offsetHeight || 0 : 0;
+        const typingHeight =
+          typingRow && !typingRow.classList.contains('hidden') ? typingRow.offsetHeight || 0 : 0;
+        const threshold = baseMargin + composerHeight + typingHeight;
         return scrollEl.scrollHeight - (scrollEl.scrollTop + scrollEl.clientHeight) < threshold;
       } catch (err) {
         return true;
